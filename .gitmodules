@@ -1,0 +1,3 @@
+[submodule "AES-GCM-SIV"]
+	path = AES-GCM-SIV
+	url = git@github.com:Shay-Gueron/AES-GCM-SIV.git

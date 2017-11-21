@@ -1,0 +1,63 @@
+print "Extracting model from 'clmul_emulator.bc'";
+clmul_emulator <- llvm_load_module "clmul_emulator.bc";
+
+let {{
+mul_result : [64] -> [64] -> [2][64]
+mul_result src1 src2 = reverse (split`{2} (0b0 # pmult src1 src2))
+}};
+
+mul <- time (
+      crucible_llvm_verify
+        clmul_emulator    /* module */
+        "mul"             /* function to verify */
+        []                /* overrides for function calls, none here */
+        false             /* clever path checking?  No need for cleverness */
+        do { src1 <- crucible_fresh_var "src1" (llvm_int 64);
+             src2 <- crucible_fresh_var "src2" (llvm_int 64);
+             dst  <- crucible_alloc (llvm_array 2 (llvm_int 64));
+             crucible_execute_func [ crucible_term src1
+                                   , crucible_term src2
+                                   , dst
+                                   ];
+             crucible_points_to dst (crucible_term {{ mul_result src1 src2 }});
+           }
+        rme
+  );
+
+
+let allocVal name str  =
+      do { let ty = llvm_type str;
+           ptr <- crucible_alloc ty;
+           val <- crucible_fresh_var name ty;
+           crucible_points_to ptr (crucible_term val);
+           return (ptr,val);
+         };
+
+
+
+vclmul_emulator <- time (
+  crucible_llvm_verify
+    clmul_emulator
+    "vclmul_emulator"
+    [mul]
+    false
+    do { (src1,src1v) <- allocVal "src1" "[2 x i64]";
+         (src2,src2v) <- allocVal "src2" "[2 x i64]";
+         dst          <- crucible_alloc  (llvm_type "[2 x i64]");
+         imm          <- crucible_fresh_var "imm" (llvm_int 8);
+         crucible_precond {{ (imm || 0x11) == 0x11 }};
+         crucible_execute_func [ src1
+                               , src2
+                               , dst
+                               , crucible_term imm
+                               ];
+
+         crucible_points_to
+            dst
+            (crucible_term {{ mul_result (src1v@[imm!0]) (src2v@[imm!4]) }});
+
+       }
+    (unint_z3 ["mul_result"])
+  );
+
+

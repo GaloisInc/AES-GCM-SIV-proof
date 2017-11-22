@@ -1,0 +1,21 @@
+module AES where
+
+import `Common::AES
+import `Common::AES as AES
+
+type constraint ValidKey k m = (k == 128 + m * 64, 2 >= m)
+
+encrypt : {k,m} ValidKey k m => [k] -> [128] -> [128]
+encrypt = aesEncrypt`{Mode = m}
+
+decrypt : {k,m} ValidKey k m => [k] -> [128] -> [128]
+decrypt = aesDecrypt`{Mode = m}
+
+// XXX: Note that the `m` is not actually used but this is an artifiact
+// of the parameter being added to everything.
+sub_bytes : {m} (2 >= m) => State m -> State m
+sub_bytes = SubBytes`{m}
+
+type State m = AES::State m
+
+

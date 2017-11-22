@@ -1,0 +1,44 @@
+m <- llvm_load_module "aes.bc";
+
+import "../cryptol-specs/AES.cry";
+
+
+let allocVal name str  =
+      do { let ty = llvm_type str;
+           ptr <- crucible_alloc ty;
+           val <- crucible_fresh_var name ty;
+           crucible_points_to ptr (crucible_term val);
+           return (ptr,val);
+         };
+
+let {{
+toState : [4][32] -> State 1
+toState x = split (split (join x))
+
+fromState : State 1 -> [4][32]
+fromState x = split (join (join x))
+
+withState : (State 1 -> State 1) -> [4][32] -> [4][32]
+withState f x = fromState (f (toState x))
+
+}};
+
+
+mul <- time (
+      crucible_llvm_verify
+        m
+        "emulated_aesenc_substitute_bytes"
+        []
+        false
+        do { (ptr_data, data) <- allocVal "data" "[4 x i32]";
+             crucible_execute_func [ ptr_data ];
+             // let post = {{ fromState (sub_bytes`{1} (toState data)) }};
+             let post = {{ withState sub_bytes`{1} data }};
+             crucible_points_to ptr_data (crucible_term {{ post }});
+             crucible_return (crucible_term {{ 1 : [32] }});
+           }
+       rme
+  );
+
+
+

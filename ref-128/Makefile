@@ -1,15 +1,20 @@
 CLANG=clang-4.0
+LLVM_LINK=llvm-link-4.0
 SAW=saw
 
-FILES=main.c GCM_SIV_c.c clmul_emulator.c aes_emulation.c aes_emulation_tables.c
-
 %.bc: src/%.c
-	$(CLANG) -c -emit-llvm -o $@ $^
+	$(CLANG) -g -c -emit-llvm -o $@ $^
 
 .PHONY: proof clean
 
-proof: clmul_emulator.bc
-	$(SAW) proof.saw
+proof: clmul_emulator.bc aes.bc
+	# $(SAW) clmul_emulator.saw
+	$(SAW) aes.saw
+
+# We join the bit-code files for these modules, so that the symbolic simulator
+# can see how the tables are initialized
+aes.bc: aes_emulation_tables.bc aes_emulation.bc
+	$(LLVM_LINK) -o $@ $^
 
 clean:
 	-rm *.bc

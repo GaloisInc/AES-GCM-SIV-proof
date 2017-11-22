@@ -11,11 +11,12 @@ encrypt = aesEncrypt`{Mode = m}
 decrypt : {k,m} ValidKey k m => [k] -> [128] -> [128]
 decrypt = aesDecrypt`{Mode = m}
 
-// XXX: Note that the `m` is not actually used but this is an artifiact
-// of the parameter being added to everything.
-sub_bytes : {m} (2 >= m) => State m -> State m
-sub_bytes = SubBytes`{m}
+sub_bytes : State -> State
+sub_bytes = SubBytes`{0}
 
-type State m = AES::State m
+shift_rows : State -> State
+shift_rows = ShiftRows`{0}
+
+type State = AES::State 0  /* 0 is unused */
 
 

@@ -130,6 +130,7 @@ InvMixColumns state = gf28MatrixMult (m, state)
 // The AddRoundKey transform
 AddRoundKey : (RoundKey, State) -> State
 AddRoundKey (rk, s) = rk ^ s
+
 // Key expansion
 Rcon : [8] -> [4]GF28
 Rcon i = [(gf28Pow (<| x |>, i-1)), 0, 0, 0]

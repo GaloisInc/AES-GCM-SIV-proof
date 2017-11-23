@@ -1,68 +1,106 @@
-m <- llvm_load_module "aes.bc";
-
+include "common.saw";
+c_code <- llvm_load_module "ref-128.bc";
 import "../cryptol-specs/AES.cry";
 
 
-let allocVal name str  =
-      do { let ty = llvm_type str;
-           ptr <- crucible_alloc ty;
-           val <- crucible_fresh_var name ty;
-           crucible_points_to ptr (crucible_term val);
-           return (ptr,val);
-         };
+
 
 let {{
-
-// To little endian byte representation
-toBytes : {n} (fin n) => [8 * n] -> [n][8]
-toBytes bits = reverse (split bits)
-
-fromBytes : {n} (fin n) => [n][8] -> [8 * n]
-fromBytes bytes = join (reverse bytes)
-
-
 // Our algorithm is grouped by rows, but the C one uses columns, hence the 'transpose'
 toState : [4][32] -> State
 toState cols = transpose [ toBytes col | col <- cols ]
 
+// Our state to the C represenation of the state.
 fromState : State -> [4][32]
 fromState rows = [ fromBytes col | col <- transpose rows ]
 
 withState : (State -> State) -> [4][32] -> [4][32]
 withState f x = fromState (f (toState x))
 
+
+// Key schedule representation
+
+flatSchedule : KeySchedule -> [44][32]
+flatSchedule (first,rounds,last) = join [ fromState s | s <- [first] # rounds # [last] ]
+
+unflatShedule : [44][32] -> KeySchedule
+unflatShedule (first # rounds # last) =
+  ( toState first
+  , [ toState r | r <- split rounds ]
+  , toState last
+  )
 }};
 
 
+// From aes_emulation.c
 emulated_aesenc_substitute_bytes <- time (
-      crucible_llvm_verify
-        m
-        "emulated_aesenc_substitute_bytes"
-        []
-        false
-        do { (ptr_data, data) <- allocVal "data" "[4 x i32]";
-             crucible_execute_func [ ptr_data ];
-             let post = {{ withState sub_bytes data }};
-             crucible_points_to ptr_data (crucible_term {{ post }});
-             crucible_return (crucible_term {{ 1 : [32] }});
-           }
-       rme
-  );
+  crucible_llvm_verify
+    c_code
+    "emulated_aesenc_substitute_bytes"
+    []
+    false
+    do { (ptr_data, data) <- allocVal "data" "[4 x i32]";
+         crucible_execute_func [ ptr_data ];
+         crucible_points_to ptr_data (crucible_term {{ withState sub_bytes data }});
+         crucible_return (crucible_term {{ 1 : [32] }});
+       }
+   rme
+);
 
+
+// From aes_emulation.c
 emulated_aesenc_row_shifting <- time (
   crucible_llvm_verify
-    m
+    c_code
     "emulated_aesenc_row_shifting"
     []
     false
     do {
       (ptr_data, data) <- allocVal "data" "[4 x i32]";
       crucible_execute_func [ ptr_data ];
-      let post = {{ withState shift_rows data }};
-      crucible_points_to ptr_data (crucible_term {{ post }});
+      crucible_points_to ptr_data (crucible_term  {{ withState shift_rows data }});
       crucible_return (crucible_term {{ 1 : [32] }});
+    }
+    z3
+);
+
+/*
+// From GCM_SIV_c.c
+// Takes about 10 mins on my computer.
+AES_128_Key_Expansion <- time (
+  crucible_llvm_verify
+    c_code
+    "AES_128_Key_Expansion"
+    []
+    false
+    do {
+      (ptr_userkey, userkey) <- allocVal "user" "[16 x i8]";
+      ks <- crucible_alloc (llvm_type "[44 x i32]"); // 11 rounds, at 4 * 32 each.
+      crucible_execute_func [ ptr_userkey, ptr_ks ];
+      crucible_points_to ks
+        (crucible_term {{ flatSchedule (expand_key (join userkey)) }});
     }
     abc
 );
+*/
 
+
+AES_128_Encrypt <- time (
+  crucible_llvm_verify
+    c_code
+    "AES_128_Encrypt"
+    [ emulated_aesenc_row_shifting
+    , emulated_aesenc_substitute_bytes
+    ]
+    false
+    do {
+      out          <- crucible_alloc (llvm_type "[4 x i32]");
+      (in',val_in) <- allocVal "in" "[4 x i32]";
+      (ks,val_ks)  <- allocVal "ks" "[44 x i32]";
+      crucible_execute_func [ out, in', ks ];
+      let post = {{ withState (encrypt (unflatShedule val_ks)) val_in }};
+      crucible_points_to out (crucible_term post);
+    }
+    abc
+);
 

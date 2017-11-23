@@ -7,13 +7,12 @@ SAW=saw
 
 .PHONY: proof clean
 
-proof: clmul_emulator.bc aes.bc
+proof: ref-128.bc
 	# $(SAW) clmul_emulator.saw
 	$(SAW) aes.saw
 
-# We join the bit-code files for these modules, so that the symbolic simulator
-# can see how the tables are initialized
-aes.bc: aes_emulation_tables.bc aes_emulation.bc
+# We join all bit-code together, as currently we don't support modular reasoning.
+ref-128.bc: aes_emulation_tables.bc aes_emulation.bc clmul_emulator.bc GCM_SIV_c.bc
 	$(LLVM_LINK) -o $@ $^
 
 clean:

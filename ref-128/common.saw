@@ -1,0 +1,21 @@
+let allocVal name str  =
+      do { let ty = llvm_type str;
+           ptr <- crucible_alloc ty;
+           val <- crucible_fresh_var name ty;
+           crucible_points_to ptr (crucible_term val);
+           return (ptr,val);
+         };
+
+
+let {{
+// To little endian byte representation
+toBytes : {n} (fin n) => [8 * n] -> [n][8]
+toBytes bits = reverse (split bits)
+
+// A litle endian bytes, to a bit vector.
+fromBytes : {n} (fin n) => [n][8] -> [8 * n]
+fromBytes bytes = join (reverse bytes)
+}};
+
+
+

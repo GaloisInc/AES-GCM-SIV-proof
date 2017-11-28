@@ -1,0 +1,14 @@
+include "common.saw";
+
+// C code that needs to proving
+c_code <- llvm_load_module "ref-128.bc";
+
+import "../cryptol-specs/AES128.cry";   // AES specs
+import "../cryptol-specs/GCM_SIV_128.cry";  // GCM_SIV specs
+
+// Proofs for C files
+include "clmul_emulator.saw";
+include "aes_emulation.saw";
+include "GCM_SIV_c.saw";
+
+

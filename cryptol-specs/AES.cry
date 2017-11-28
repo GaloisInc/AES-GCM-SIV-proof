@@ -1,27 +1,8 @@
 module AES where
 
 import `Common::AES
-import `Common::AES as AES
 
-type State         = AES::State 0  /* 0 is unused */
-type KeySchedule   = AES::KeySchedule 0
-
-sub_bytes : State -> State
-sub_bytes = SubBytes`{0}
-
-shift_rows : State -> State
-shift_rows = ShiftRows`{0}
-
-expand_key : [128] -> KeySchedule
-expand_key = ExpandKey`{0}
-
-encrypt : KeySchedule -> State -> State
-encrypt (kInit, ks, kFinal) pt = AESFinalRound`{0} (kFinal, rounds ! 0)
-  where
-  state0 = AddRoundKey`{0} (kInit, pt)
-  rounds = [state0] # [ AESRound`{0} (rk, s) | rk <- ks | s <- rounds ]
-
-
-
+encrypt : {k,m} (2 >= m, k == 128 + 64 * m) => [k] -> [128] -> [128]
+encrypt = aesEncrypt`{m}
 
 

@@ -8,8 +8,7 @@ SAW=saw
 .PHONY: proof clean
 
 proof: ref-128.bc
-	# $(SAW) clmul_emulator.saw
-	$(SAW) aes.saw
+	$(SAW) proof.saw
 
 # We join all bit-code together, as currently we don't support modular reasoning.
 ref-128.bc: aes_emulation_tables.bc aes_emulation.bc clmul_emulator.bc GCM_SIV_c.bc

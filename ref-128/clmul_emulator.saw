@@ -1,12 +1,9 @@
-include "common.saw";
-c_code <- llvm_load_module "ref-128.bc";
-
 let {{
 mul_result : [64] -> [64] -> [2][64]
 mul_result src1 src2 = reverse (split`{2} (0b0 # pmult src1 src2))
 }};
 
-mul <- time (
+mul <- proving "mul" (
   crucible_llvm_verify
     c_code
     "mul"             /* function to verify */
@@ -25,7 +22,7 @@ mul <- time (
 );
 
 
-vclmul_emulator <- time (
+vclmul_emulator <- proving "vclmul_emulator" (
   crucible_llvm_verify
     c_code
     "vclmul_emulator"

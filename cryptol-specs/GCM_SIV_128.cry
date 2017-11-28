@@ -1,0 +1,23 @@
+// module GCM_SIV_128 = Common::AES_GCM_SIV where
+module GCM_SIV_128 where
+
+import `Common::AES_GCM_SIV as Spec
+
+type Mode = 0        // AES128
+type AAD  = 36 * 8   // 36 bytes
+
+type MSG  = 192      // Lenght of messages.  Proof should work for anything, but
+                     // we can't do a polymorphic  proof yet.
+
+mult : [128] -> [128] -> [128]
+mult = Spec::mult`{Mode=Mode,AAD=AAD}
+
+polyval : {n} (fin n) => [128] -> [n][128] -> [128] -> [128]
+polyval H Xs initVal = psums ! 0
+  where psums = [initVal] # [ dot (s ^ x) H | s <- psums | x <- Xs ]
+
+dot : [128] -> [128] -> [128]
+dot = Spec::dot`{Mode=Mode,AAD=AAD}
+
+
+

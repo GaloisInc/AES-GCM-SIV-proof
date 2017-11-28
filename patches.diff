@@ -9,10 +9,18 @@ new mode 100755
 index 2af13a9..436e376
 Binary files a/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_GENERAL_V02_LE and b/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_GENERAL_V02_LE differ
 diff --git a/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_c.c b/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_c.c
-index 571a400..0a8be5d 100755
+index 571a400..a6be008 100755
 --- a/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_c.c
 +++ b/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_c.c
-@@ -143,13 +143,7 @@ void AES_128_Encrypt(uint32_t* out, uint32_t* in, uint32_t* ks)
+@@ -61,6 +61,7 @@
+ #include <stdlib.h>
+ #include <stdio.h>
+ #include "aes_emulation.h"
++#include "clmul_emulator.h"
+ 
+ #if !defined (ALIGN16)
+ #if defined (__GNUC__)
+@@ -143,13 +144,7 @@ void AES_128_Encrypt(uint32_t* out, uint32_t* in, uint32_t* ks)
          ks+=4;
      }
      out[0]=s0;out[1]=s1;out[2]=s2;out[3]=s3;
@@ -27,7 +35,7 @@ index 571a400..0a8be5d 100755
  }
  
  void AES_128_CTR(uint8_t* out, uint8_t* in, uint32_t* CTR, int mlen, uint32_t* ks)
-@@ -298,7 +292,7 @@ void GCM_SIV_ENC_2_Keys(uint8_t* CT, uint8_t TAG[16], uint8_t K1[16], uint8_t N[
+@@ -298,7 +293,7 @@ void GCM_SIV_ENC_2_Keys(uint8_t* CT, uint8_t TAG[16], uint8_t K1[16], uint8_t N[
  	POLYVAL(LENBLK, (uint64_t*)HASH_KEY, 16, POLYV);
  	#ifdef XOR_WITH_NONCE
  	((uint64_t*)POLYV)[0] ^= ((uint64_t*)N)[0];
@@ -36,7 +44,7 @@ index 571a400..0a8be5d 100755
  	#endif
  	((uint8_t*)POLYV)[15] &= 127;
  	
-@@ -377,7 +371,7 @@ int GCM_SIV_DEC_2_Keys(uint8_t* MSG, uint8_t TAG[16], uint8_t K1[16], uint8_t N[
+@@ -377,7 +372,7 @@ int GCM_SIV_DEC_2_Keys(uint8_t* MSG, uint8_t TAG[16], uint8_t K1[16], uint8_t N[
  	new_TAG[1] = T[1];
  	#ifdef XOR_WITH_NONCE
  	((uint64_t*)new_TAG)[0] ^= ((uint64_t*)N)[0];

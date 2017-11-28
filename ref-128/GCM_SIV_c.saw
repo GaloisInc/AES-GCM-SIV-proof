@@ -113,15 +113,39 @@ let provePOLYVAL n =
   );
 
 
+let msg_size_bytes = 24;
+let aad_size_bytes = 36;
+
 let {{
-type msg_size_bytes = 24
-type aad_size_bytes = 36
 type bytesToBlocks x = (8 * x) /^ 128
 }};
 
 polyval_msg <- provePOLYVAL (eval_size {| 2 * bytesToBlocks msg_size_bytes |} );
 polyval_msg <- provePOLYVAL (eval_size {| 2 * bytesToBlocks aad_size_bytes |} );
 polyval_len <- provePOLYVAL 2;
+
+
+AES_128_CTR <-
+  proving "AES_128_CTR" (
+  crucible_llvm_verify
+    c_code
+    "AES_128_CTR"
+    [ AES_128_Encrypt ]
+    false
+    do {
+      out <- crucible_alloc (llvm_array msg_size_bytes (llvm_int 8));
+      (in', val_in') <- allocArray "in" msg_size_bytes (llvm_int 8);
+      (CTR, val_CTR) <- allocArray "CTR" 4  (llvm_int 32);
+      let len = crucible_term {{ `msg_size_bytes : [32] }};
+      (ks, val_ks)   <- allocArray "ks"  44 (llvm_int 32);
+      crucible_execute_func [out,in',CTR, len, ks];
+      let post = {{ zero : [msg_size_bytes][8] }};
+      crucible_points_to out (crucible_term post);
+    }
+    abc
+);
+
+
 
 
 /*

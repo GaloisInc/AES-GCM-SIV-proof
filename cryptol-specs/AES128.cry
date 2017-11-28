@@ -3,6 +3,7 @@ module AES128 where
 
 import `Common::AES
 import `Common::AES as AES
+import AES as AES
 
 type State         = AES::State 0  /* 0 is unused */
 type KeySchedule   = AES::KeySchedule 0
@@ -14,7 +15,7 @@ shift_rows : State -> State
 shift_rows = ShiftRows`{0}
 
 expand_key : [128] -> KeySchedule
-expand_key = ExpandKey`{0}
+expand_key = AES::expandKey
 
 encrypt : KeySchedule -> State -> State
 encrypt (kInit, ks, kFinal) pt = AESFinalRound`{0} (kFinal, rounds ! 0)

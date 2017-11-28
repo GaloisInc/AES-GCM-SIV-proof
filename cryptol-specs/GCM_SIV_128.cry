@@ -16,7 +16,7 @@ polyval : {n} (fin n) => [128] -> [n][128] -> [128] -> [128]
 polyval H Xs initVal = psums ! 0
   where psums = [initVal] # [ dot (s ^ x) H | s <- psums | x <- Xs ]
 
-counter_mode : {n} Spec::KS AAD Mode -> ([96],[32]) -> [n][128] -> [n][128]
+counter_mode : {n} Spec::KS Mode AAD -> ([96],[32]) -> [n][128] -> [n][128]
 counter_mode = Spec::counter_mode`{Mode=Mode,AAD=AAD}
 
 dot : [128] -> [128] -> [128]

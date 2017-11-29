@@ -104,9 +104,9 @@ let provePOLYVAL n =
       (H,val_H)           <- allocArray "H"     2     (llvm_int 64);
       (result,val_result) <- allocArray "result" 2    (llvm_int 64);
       crucible_execute_func [ input, H, crucible_term {{ 8 * `n : [64] }} , result ];
-      let post = {{ to64 (polyval (from64 val_H)
-                                  (from64s val_input)
-                                  (from64 val_result)) }};
+      let post = {{ to64 (polyvalFrom (from64 val_H)
+                                      (from64s val_input)
+                                      (from64 val_result)) }};
       crucible_points_to result (crucible_term post);
     }
     abc

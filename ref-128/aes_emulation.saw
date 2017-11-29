@@ -1,6 +1,7 @@
 
 let {{
-// Our algorithm is grouped by rows, but the C one uses columns, hence the 'transpose'
+// Our algorithm is grouped by rows, but the C one uses columns,
+// hence the 'transpose'
 toState : [4][32] -> State
 toState cols = transpose [ toBytes col | col <- cols ]
 
@@ -27,37 +28,33 @@ unflatShedule (first # rounds # last) =
 
 
 emulated_aesenc_substitute_bytes <-
-  proving "emulated_aesenc_substitute_bytes" (
-  crucible_llvm_verify
-   c_code
-   "emulated_aesenc_substitute_bytes"
-   []
-   false
-   do { (ptr_data, data) <- allocVal "data" "[4 x i32]";
-        crucible_execute_func [ ptr_data ];
-        crucible_points_to ptr_data
-                           (crucible_term {{ withState sub_bytes data }});
-        crucible_return (crucible_term {{ 1 : [32] }});
-      }
-  rme
-);
+  proof
+    skipping "emulated_aesenc_substitute_bytes"
+    c_code
+    "emulated_aesenc_substitute_bytes"
+    []
+    false
+    do { (ptr_data, data) <- allocArrayIn "data" 4 i32;
+         crucible_execute_func [ ptr_data ];
+         pointsTo ptr_data {{ withState sub_bytes data }};
+         returns {{ 1 : [32] }};
+       }
+    rme;
 
 
 emulated_aesenc_row_shifting <-
-  proving "emulated_aesenc_row_shifting" (
-  crucible_llvm_verify
+  proof
+    skipping "emulated_aesenc_row_shifting"
     c_code
     "emulated_aesenc_row_shifting"
     []
     false
     do {
-      (ptr_data, data) <- allocVal "data" "[4 x i32]";
+      (ptr_data, data) <- allocArrayIn "data" 4 i32;
       crucible_execute_func [ ptr_data ];
-      crucible_points_to ptr_data
-                         (crucible_term  {{ withState shift_rows data }});
-      crucible_return (crucible_term {{ 1 : [32] }});
+      pointsTo ptr_data {{ withState shift_rows data }};
+      returns {{ 1 : [32] }};
     }
-    z3
-);
+    z3;
 
 

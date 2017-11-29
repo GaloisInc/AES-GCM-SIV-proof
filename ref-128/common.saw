@@ -1,21 +1,38 @@
+let allocArg name ty = crucible_fresh_var name ty;
 
+let pointsTo x y = crucible_points_to x (crucible_term y);
+let returns x    = crucible_return (crucible_term x);
 
-let allocValT name ty =
-      do { ptr <- crucible_alloc ty;
-           val <- crucible_fresh_var name ty;
-           crucible_points_to ptr (crucible_term val);
-           return (ptr,val);
-         };
-
-let allocArray name elN elT = allocValT name (llvm_array elN elT);
-
-let allocVal name str = allocValT name (llvm_type str);
-
-
-let proving x y =
-  do { print (str_concat "Validating " x);
-       time y;
+let allocPtrIn name ty =
+  do { val <- allocArg name ty;
+       ptr <- crucible_alloc ty;
+       pointsTo ptr val;
+       return (ptr,val);
      };
+
+let allocArrayIn  name elN elT = allocPtrIn name (llvm_array elN elT);
+let allocArrayOut name elN elT = crucible_alloc (llvm_array elN elT);
+
+let i8  = llvm_int 8;
+let i16 = llvm_int 16;
+let i32 = llvm_int 32;
+let i64 = llvm_int 64;
+
+
+let skipping = false;
+let proving = true;
+
+let proof really msg code func ovewrite withPaths setup prover =
+  do { let action = if really then "Proving " else "Skipping ";
+       print (str_concat action msg);
+       if really
+         then time (
+                crucible_llvm_verify code func ovewrite withPaths setup prover
+              )
+         else crucible_llvm_unsafe_assume_spec code func setup;
+     };
+
+
 
 
 let {{

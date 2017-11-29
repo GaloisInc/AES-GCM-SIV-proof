@@ -1,30 +1,27 @@
 
-/*
 // From GCM_SIV_c.c
 // Takes about 10 mins on my computer.
-AES_128_Key_Expansion <- time (
-  crucible_llvm_verify
+AES_128_Key_Expansion <-
+  proof
+    skipping "AES_128_Key_Expansion"
     c_code
     "AES_128_Key_Expansion"
     []
     false
     do {
-      (ptr_userkey, userkey) <- allocVal "user" "[16 x i8]";
-      ks <- crucible_alloc (llvm_type "[44 x i32]"); // 11 rounds, at 4 * 32 each.
-      crucible_execute_func [ ptr_userkey, ptr_ks ];
-      crucible_points_to ks
-        (crucible_term {{ flatSchedule (expand_key (join userkey)) }});
+      (userkey, val_userkey) <- allocArrayIn "user" 16 i8;
+      ks                     <- allocArrayOut "ks" 44 i32;
+                                // 11 rounds, at 4 * 32 each
+      crucible_execute_func [ userkey, ks ];
+      pointsTo ks {{ flatSchedule (expand_key (join val_userkey)) }};
     }
-    abc
-);
-*/
+    abc;
 
 
-/*
 // Takes about 9 hours on my computer.
 AES_128_Encrypt <-
-  proving "AES_128_Encrypt" (
-  crucible_llvm_verify
+  proof
+    skipping "AES_128_Encrypt"
     c_code
     "AES_128_Encrypt"
     [ emulated_aesenc_row_shifting
@@ -32,32 +29,14 @@ AES_128_Encrypt <-
     ]
     false
     do {
-      out          <- crucible_alloc (llvm_type "[4 x i32]");
-      (in',val_in) <- allocVal "in" "[4 x i32]";
-      (ks,val_ks)  <- allocVal "ks" "[44 x i32]";
-      crucible_execute_func [ out, in', ks ];
-      let post = {{ withState (encrypt (unflatShedule val_ks)) val_in }};
-      crucible_points_to out (crucible_term post);
+      out          <- allocArrayOut "out" 4 i32;
+      (in_,val_in) <- allocArrayIn "in"   4 i32;
+      (ks,val_ks)  <- allocArrayIn "ks"  44 i32;
+      crucible_execute_func [ out, in_, ks ];
+      pointsTo out {{ withState (encrypt (unflatShedule val_ks)) val_in }};
     }
-    abc
-);
-*/
+    abc;
 
-// Temporary over-ride, as the actual proof takes too long to run every time.
-AES_128_Encrypt <-
-  proving "AES_128_Encrypt" (
-  crucible_llvm_unsafe_assume_spec
-    c_code
-    "AES_128_Encrypt"
-    do {
-      out          <- crucible_alloc (llvm_type "[4 x i32]");
-      (in',val_in) <- allocVal "in" "[4 x i32]";
-      (ks,val_ks)  <- allocVal "ks" "[44 x i32]";
-      crucible_execute_func [ out, in', ks ];
-      let post = {{ withState (encrypt (unflatShedule val_ks)) val_in }};
-      crucible_points_to out (crucible_term post);
-    }
-);
 
 let {{
 
@@ -73,44 +52,41 @@ from64s xs = [ from64 arr | arr <- split xs ]
 }};
 
 gfmul_int <-
-  proving "gfmul_int" (
-  crucible_llvm_verify
+  proof
+    skipping "gfmul_int"
     c_code
     "gfmul_int"
     [vclmul_emulator]
     false
     do {
-      (a,val_a) <- allocArray "a" 2 (llvm_int 64);
-      (b,val_b) <- allocArray "b" 2 (llvm_int 64);
+      (a,val_a) <- allocArrayIn "a" 2 i64;
+      (b,val_b) <- allocArrayIn "b" 2 i64;
       // We only every call this with the first and last argument aliased,
       // which is why we just prove this case.
       crucible_execute_func [ a, b, a ];
-      let post = {{ to64 (dot (from64 val_a) (from64 val_b)) }};
-      crucible_points_to a (crucible_term post);
+      pointsTo a {{ to64 (dot (from64 val_a) (from64 val_b)) }};
     }
-    rme
-);
+    rme;
 
 
 let provePOLYVAL n =
-  proving (str_concat "POLYVAL, input size = " (show n)) (
-  crucible_llvm_verify
+  proof
+    skipping (str_concat "POLYVAL, input size = " (show n))
     c_code
     "POLYVAL"
     [ vclmul_emulator, gfmul_int ]
     false
     do {
-      (input,val_input)   <- allocArray "input" n     (llvm_int 64);
-      (H,val_H)           <- allocArray "H"     2     (llvm_int 64);
-      (result,val_result) <- allocArray "result" 2    (llvm_int 64);
-      crucible_execute_func [ input, H, crucible_term {{ 8 * `n : [64] }} , result ];
-      let post = {{ to64 (polyvalFrom (from64 val_H)
-                                      (from64s val_input)
-                                      (from64 val_result)) }};
-      crucible_points_to result (crucible_term post);
+      (input,val_input)   <- allocArrayIn "input" n  i64;
+      (H,val_H)           <- allocArrayIn "H"     2  i64;
+      (result,val_result) <- allocArrayIn "result" 2 i64;
+      crucible_execute_func [ input, H, crucible_term {{ 8 * `n : [64] }}
+                                      , result ];
+      pointsTo result {{ to64 (polyvalFrom (from64 val_H)
+                                           (from64s val_input)
+                                           (from64 val_result)) }};
     }
-    abc
-  );
+    abc;
 
 
 let msg_size_bytes = 24;
@@ -126,31 +102,37 @@ polyval_len <- provePOLYVAL 2;
 
 
 AES_128_CTR <-
-  proving "AES_128_CTR" (
-  crucible_llvm_verify
+  proof
+    proving "AES_128_CTR"
     c_code
     "AES_128_CTR"
     [ AES_128_Encrypt ]
     false
     do {
-      out <- crucible_alloc (llvm_array msg_size_bytes (llvm_int 8));
-      (in', val_in') <- allocArray "in" msg_size_bytes (llvm_int 8);
-      (CTR, val_CTR) <- allocArray "CTR" 4  (llvm_int 32);
+      out            <- allocArrayOut "out" msg_size_bytes i8;
+      (in', val_in') <- allocArrayIn  "in"  msg_size_bytes i8;
+      (CTR, val_CTR) <- allocArrayIn  "CTR" 4              i32;
       let len = crucible_term {{ `msg_size_bytes : [32] }};
-      (ks, val_ks)   <- allocArray "ks"  44 (llvm_int 32);
+      (ks, val_ks)   <- allocArrayIn "ks"  44 i32;
       crucible_execute_func [out,in',CTR, len, ks];
-      let post = {{ zero : [msg_size_bytes][8] }};
-      crucible_points_to out (crucible_term post);
+      pointsTo out
+        {{ split`{msg_size_bytes,8} (byteSwap
+                      (unblockify (counter_mode ksch (upper,lower) msg))
+                      where
+                      msg   = blockify (join val_in')
+                      lower = val_CTR @ 0
+                      upper = (val_CTR @ 3) # (val_CTR @ 2) # (val_CTR @ 1)
+                      ksch  = unflatShedule val_ks)
+        }};
     }
-    abc
-);
+    abc;
 
 
 
 
 /*
 GCM_SIV_ENC_2_Keys <-
-  proving "GCM_SIV_ENC_2_Keys" (
+  skipping "GCM_SIV_ENC_2_Keys" (
   crucible_llvm_verify
     c_code
     "GCM_SIV_ENC_2_Keys"
@@ -162,12 +144,12 @@ GCM_SIV_ENC_2_Keys <-
     ]
     false
     do {
-      CT            <- crucible_alloc (llvm_array msg_size_bytes (llvm_int 8));
-      TAG           <- crucible_alloc (llvm_array 16             (llvm_int 8));
-      (K1,val_K1)   <- allocArray "K1"            16             (llvm_int 8);
-      (N,val_N)     <- allocArray "N"             12             (llvm_int 8);
-      (AAD,val_AAD) <- allocArray "AAD"           aad_size_bytes (llvm_int 8);
-      (MSG,val_MSG) <- allocArray "MSG"           msg_size_bytes (llvm_int 8);
+      CT            <- crucible_alloc (llvm_array msg_size_bytes i8);
+      TAG           <- crucible_alloc (llvm_array 16             i8);
+      (K1,val_K1)   <- allocArray "K1"            16             i8;
+      (N,val_N)     <- allocArray "N"             12             i8;
+      (AAD,val_AAD) <- allocArray "AAD"           aad_size_bytes i8;
+      (MSG,val_MSG) <- allocArray "MSG"           msg_size_bytes i8;
       crucible_execute_func [ CT, TAG, K1, N, AAD, MSG
                             , crucible_term  aad_size_bytes
                             , crucible_term  msg_size_bytes ];

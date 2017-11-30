@@ -92,71 +92,105 @@ let provePOLYVAL n =
 let msg_size_bytes = 24;
 let aad_size_bytes = 36;
 
-let {{
-type bytesToBlocks x = (8 * x) /^ 128
-}};
+// Map number of bytes to size of array of i64, so that we have complete blocks.
+let bytesToBlocks x = eval_size {| 2 * ((8 * x) /^ 128) |};
 
-polyval_msg <- provePOLYVAL (eval_size {| 2 * bytesToBlocks msg_size_bytes |} );
-polyval_msg <- provePOLYVAL (eval_size {| 2 * bytesToBlocks aad_size_bytes |} );
+// Increase number of bytes to next 16-byte (i.e.,block) boundary.
+let paddedToBlock n = eval_size {| n + (n %^ 16) |};
+
+
+polyval_msg <- provePOLYVAL (bytesToBlocks msg_size_bytes);
+polyval_aad <- provePOLYVAL (bytesToBlocks aad_size_bytes);
 polyval_len <- provePOLYVAL 2;
 
 
 AES_128_CTR <-
   proof
-    proving "AES_128_CTR"
+    skipping "AES_128_CTR"
     c_code
     "AES_128_CTR"
     [ AES_128_Encrypt ]
     false
     do {
-      out            <- allocArrayOut "out" msg_size_bytes i8;
-      (in', val_in') <- allocArrayIn  "in"  msg_size_bytes i8;
+      let paddedMsg = paddedToBlock msg_size_bytes;
+      out            <- allocArrayOut "out" paddedMsg i8;
+      (in', val_in') <- allocArrayIn  "in"  paddedMsg i8;
       (CTR, val_CTR) <- allocArrayIn  "CTR" 4              i32;
-      let len = crucible_term {{ `msg_size_bytes : [32] }};
+      let len = crucible_term {{ `paddedMsg: [32] }};
       (ks, val_ks)   <- allocArrayIn "ks"  44 i32;
       crucible_execute_func [out,in',CTR, len, ks];
       pointsTo out
-        {{ split`{msg_size_bytes,8} (byteSwap
-                      (unblockify (counter_mode ksch (upper,lower) msg))
-                      where
-                      msg   = blockify (join val_in')
-                      lower = val_CTR @ 0
-                      upper = (val_CTR @ 3) # (val_CTR @ 2) # (val_CTR @ 1)
-                      ksch  = unflatShedule val_ks)
+        {{ split`{paddedMsg,8}
+             (unblockify (counter_mode ksch (upper,lower) msg)
+                 where
+                 msg           = blockify (join val_in')
+                 upper # lower = join (reverse val_CTR)
+                 ksch          = unflatShedule val_ks
+            )
         }};
     }
     abc;
 
 
-
-
-/*
 GCM_SIV_ENC_2_Keys <-
-  skipping "GCM_SIV_ENC_2_Keys" (
-  crucible_llvm_verify
+  proof
+    proving "GCM_SIV_ENC_2_Keys"
     c_code
     "GCM_SIV_ENC_2_Keys"
     [ AES_128_Key_Expansion
     , AES_128_Encrypt
+    , AES_128_CTR
     , polyval_len
     , polyval_aad
     , polyval_msg
     ]
     false
     do {
-      CT            <- crucible_alloc (llvm_array msg_size_bytes i8);
-      TAG           <- crucible_alloc (llvm_array 16             i8);
-      (K1,val_K1)   <- allocArray "K1"            16             i8;
-      (N,val_N)     <- allocArray "N"             12             i8;
-      (AAD,val_AAD) <- allocArray "AAD"           aad_size_bytes i8;
-      (MSG,val_MSG) <- allocArray "MSG"           msg_size_bytes i8;
-      crucible_execute_func [ CT, TAG, K1, N, AAD, MSG
-                            , crucible_term  aad_size_bytes
-                            , crucible_term  msg_size_bytes ];
+      let paddedMsg = paddedToBlock msg_size_bytes;
+      CT            <- allocArrayOut "CT"  paddedMsg i8;
+      TAG           <- allocArrayOut "TAG" 16        i8;
+      (K1,val_K1)   <- allocArrayIn  "K1"  16        i8;
+      (N,val_N)     <- allocArrayIn  "N"   12        i8;
+      (AAD,val_AAD) <- allocArrayIn  "AAD" (paddedToBlock aad_size_bytes) i8;
+      (MSG,val_MSG) <- allocArrayIn  "MSG" paddedMsg i8;
 
-      // XXX: Add post condition
+      crucible_precond {{ drop`{aad_size_bytes} val_AAD == zero }};
+      crucible_precond {{ drop`{msg_size_bytes} val_MSG == zero }};
+
+      crucible_execute_func [ CT, TAG, K1, N, AAD, MSG
+                            , crucible_term  {{ `aad_size_bytes : [64] }}
+                            , crucible_term  {{ `msg_size_bytes : [64] }} ];
+
+      result <- crucible_fresh_var "msg_padding" (llvm_array paddedMsg i8);
+
+      let posts = {{ (split`{msg_size_bytes,8} ct,  split`{16,8} (byteSwap tag))
+
+          where
+          N_bits  = byteSwap (join val_N)
+          K1_bits = byteSwap (join val_K1)
+          keys = derive_key K1_bits N_bits
+          (ct,tag) = gcm_siv_plus
+                      keys
+                      N_bits
+                      (join (take`{aad_size_bytes} val_AAD))
+                      (join (take`{msg_size_bytes} val_MSG))
+
+        }};
+
+      pointsTo CT  result;
+      crucible_postcond {{ take result == posts.0 }};
+      pointsTo TAG {{ posts.1 }};
     }
-    abc
-);
-*/
+    do {
+      unfolding ["expand_key","expandKey1","encrypt","derive_key","aes"
+                ,"gcm_siv_plus", "encryptWithSchedule","polyvalFrom"];
+      unint_z3 [ // "polyvalFrom"    // For polyval
+                 "counter_mode"   // AES_128_CTR
+               , "expandKey"
+               , "AESFinalRound"
+               , "AESRound"
+               , "AddRoundKey"
+               , "dot"
+               ];
+    };
 

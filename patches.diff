@@ -1,15 +1,5 @@
-diff --git a/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_GENERAL_V02_BE b/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_GENERAL_V02_BE
-old mode 100644
-new mode 100755
-index 9a24303..d238dab
-Binary files a/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_GENERAL_V02_BE and b/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_GENERAL_V02_BE differ
-diff --git a/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_GENERAL_V02_LE b/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_GENERAL_V02_LE
-old mode 100644
-new mode 100755
-index 2af13a9..436e376
-Binary files a/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_GENERAL_V02_LE and b/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_GENERAL_V02_LE differ
 diff --git a/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_c.c b/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_c.c
-index 571a400..a6be008 100755
+index 571a400..f920d4f 100755
 --- a/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_c.c
 +++ b/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_c.c
 @@ -61,6 +61,7 @@
@@ -35,6 +25,15 @@ index 571a400..a6be008 100755
  }
  
  void AES_128_CTR(uint8_t* out, uint8_t* in, uint32_t* CTR, int mlen, uint32_t* ks)
+@@ -168,7 +163,7 @@ void AES_128_CTR(uint8_t* out, uint8_t* in, uint32_t* CTR, int mlen, uint32_t* k
+         P+=4;
+         C+=4;
+         // CTR[3] = bswap_32(bswap_32(CTR[3]) + 1);
+-		CTR[0] = ((CTR[0] +1) % (0xFFFFFFFF));
++		CTR[0] = CTR[0] + 1; // ((CTR[0] +1) % (0xFFFFFFFF));
+     }
+     if(i*16 < mlen)
+     {
 @@ -298,7 +293,7 @@ void GCM_SIV_ENC_2_Keys(uint8_t* CT, uint8_t TAG[16], uint8_t K1[16], uint8_t N[
  	POLYVAL(LENBLK, (uint64_t*)HASH_KEY, 16, POLYV);
  	#ifdef XOR_WITH_NONCE

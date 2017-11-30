@@ -53,7 +53,7 @@ from64s xs = [ from64 arr | arr <- split xs ]
 
 gfmul_int <-
   proof
-    skipping "gfmul_int"
+    proving "gfmul_int"
     c_code
     "gfmul_int"
     [vclmul_emulator]
@@ -71,7 +71,7 @@ gfmul_int <-
 
 let provePOLYVAL n =
   proof
-    skipping (str_concat "POLYVAL, input size = " (show n))
+    proving (str_concat "POLYVAL, input size = " (show n))
     c_code
     "POLYVAL"
     [ vclmul_emulator, gfmul_int ]
@@ -106,7 +106,7 @@ polyval_len <- provePOLYVAL 2;
 
 AES_128_CTR <-
   proof
-    skipping "AES_128_CTR"
+    proving "AES_128_CTR"
     c_code
     "AES_128_CTR"
     [ AES_128_Encrypt ]

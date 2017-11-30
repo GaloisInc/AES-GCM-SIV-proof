@@ -5,7 +5,7 @@ mul_result src1 src2 = reverse (split`{2} (0b0 # pmult src1 src2))
 
 mul <-
   proof
-    skipping "mul"
+    proving "mul"
     c_code
     "mul"
     []
@@ -21,7 +21,7 @@ mul <-
 
 vclmul_emulator <-
   proof
-    skipping "vclmul_emulator"
+    proving "vclmul_emulator"
     c_code
     "vclmul_emulator"
     [mul]

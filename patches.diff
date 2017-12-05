@@ -1,5 +1,13 @@
+diff --git a/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_GENERAL_V02_BE b/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_GENERAL_V02_BE
+deleted file mode 100644
+index 9a24303..0000000
+Binary files a/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_GENERAL_V02_BE and /dev/null differ
+diff --git a/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_GENERAL_V02_LE b/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_GENERAL_V02_LE
+deleted file mode 100644
+index 2af13a9..0000000
+Binary files a/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_GENERAL_V02_LE and /dev/null differ
 diff --git a/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_c.c b/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_c.c
-index 571a400..f920d4f 100755
+index 571a400..7f25fa3 100755
 --- a/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_c.c
 +++ b/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_c.c
 @@ -61,6 +61,7 @@
@@ -10,10 +18,51 @@ index 571a400..f920d4f 100755
  
  #if !defined (ALIGN16)
  #if defined (__GNUC__)
-@@ -143,13 +144,7 @@ void AES_128_Encrypt(uint32_t* out, uint32_t* in, uint32_t* ks)
+@@ -109,47 +110,19 @@ void AES_128_Key_Expansion(const unsigned char *userkey, uint32_t* ks)
+ void AES_128_Encrypt(uint32_t* out, uint32_t* in, uint32_t* ks)
+ {
+     int i, j;
+-    uint32_t s0, s1, s2, s3;
+-    uint32_t t0, t1, t2, t3;
+-    
+-    s0 = in[0]^ks[0];
+-    s1 = in[1]^ks[1];
+-    s2 = in[2]^ks[2];
+-    s3 = in[3]^ks[3];
++
++    out[0] = in[0]^ks[0];
++    out[1] = in[1]^ks[1];
++    out[2] = in[2]^ks[2];
++    out[3] = in[3]^ks[3];
+     ks+=4;
+-    
++
+     for(i=0; i<9; i++)
+     {
+-        t0 = emulated_aesenc_enc_table_0[s0 & 0xff] ^ 
+-             emulated_aesenc_enc_table_1[(s1 >> 8) & 0xff] ^ 
+-             emulated_aesenc_enc_table_2[(s2 >> 16) & 0xff] ^ 
+-             emulated_aesenc_enc_table_3[(s3 >> 24) & 0xff];
+-        t1 = emulated_aesenc_enc_table_0[s1 & 0xff] ^ 
+-             emulated_aesenc_enc_table_1[(s2 >> 8) & 0xff] ^ 
+-             emulated_aesenc_enc_table_2[(s3 >> 16) & 0xff] ^ 
+-             emulated_aesenc_enc_table_3[(s0 >> 24) & 0xff];	
+-        t2 = emulated_aesenc_enc_table_0[s2 & 0xff] ^ 
+-             emulated_aesenc_enc_table_1[(s3 >> 8) & 0xff] ^ 
+-             emulated_aesenc_enc_table_2[(s0 >> 16) & 0xff] ^ 
+-             emulated_aesenc_enc_table_3[(s1 >> 24) & 0xff] ;
+-        t3 = emulated_aesenc_enc_table_0[s3 & 0xff] ^ 
+-             emulated_aesenc_enc_table_1[(s0 >> 8) & 0xff] ^ 
+-             emulated_aesenc_enc_table_2[(s1 >> 16) & 0xff] ^ 
+-             emulated_aesenc_enc_table_3[(s2 >> 24) & 0xff];
+-        s0 = t0^ks[0];
+-        s1 = t1^ks[1];
+-        s2 = t2^ks[2];
+-        s3 = t3^ks[3];
++        emulated_aesenc(out,ks);
          ks+=4;
      }
-     out[0]=s0;out[1]=s1;out[2]=s2;out[3]=s3;
+-    out[0]=s0;out[1]=s1;out[2]=s2;out[3]=s3;
 -    emulated_aesenc_row_shifting(out);
 -	emulated_aesenc_substitute_bytes(out);
 -  
@@ -25,7 +74,7 @@ index 571a400..f920d4f 100755
  }
  
  void AES_128_CTR(uint8_t* out, uint8_t* in, uint32_t* CTR, int mlen, uint32_t* ks)
-@@ -168,7 +163,7 @@ void AES_128_CTR(uint8_t* out, uint8_t* in, uint32_t* CTR, int mlen, uint32_t* k
+@@ -168,7 +141,7 @@ void AES_128_CTR(uint8_t* out, uint8_t* in, uint32_t* CTR, int mlen, uint32_t* k
          P+=4;
          C+=4;
          // CTR[3] = bswap_32(bswap_32(CTR[3]) + 1);
@@ -34,7 +83,7 @@ index 571a400..f920d4f 100755
      }
      if(i*16 < mlen)
      {
-@@ -298,7 +293,7 @@ void GCM_SIV_ENC_2_Keys(uint8_t* CT, uint8_t TAG[16], uint8_t K1[16], uint8_t N[
+@@ -298,7 +271,7 @@ void GCM_SIV_ENC_2_Keys(uint8_t* CT, uint8_t TAG[16], uint8_t K1[16], uint8_t N[
  	POLYVAL(LENBLK, (uint64_t*)HASH_KEY, 16, POLYV);
  	#ifdef XOR_WITH_NONCE
  	((uint64_t*)POLYV)[0] ^= ((uint64_t*)N)[0];
@@ -43,7 +92,7 @@ index 571a400..f920d4f 100755
  	#endif
  	((uint8_t*)POLYV)[15] &= 127;
  	
-@@ -377,7 +372,7 @@ int GCM_SIV_DEC_2_Keys(uint8_t* MSG, uint8_t TAG[16], uint8_t K1[16], uint8_t N[
+@@ -377,7 +350,7 @@ int GCM_SIV_DEC_2_Keys(uint8_t* MSG, uint8_t TAG[16], uint8_t K1[16], uint8_t N[
  	new_TAG[1] = T[1];
  	#ifdef XOR_WITH_NONCE
  	((uint64_t*)new_TAG)[0] ^= ((uint64_t*)N)[0];

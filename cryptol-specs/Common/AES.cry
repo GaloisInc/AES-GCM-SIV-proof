@@ -23,6 +23,20 @@ aesEncrypt key pt = aesEncryptWithSchedule (ExpandKey key) pt
 aesDecrypt : [AESKeySize] -> [128] -> [128]
 aesDecrypt key ct = aesDecryptWithSchedule (ExpandKey key) ct
 
+tbox_round : RoundKey -> State -> State
+tbox_round k s =
+  k ^ transpose
+        [ t 0 ^ t 1 ^ t 2 ^ t 3 where t n = tbox n (s @ n @ (j + n))
+        | j <- [ 0 .. 3 ]
+        ]
+
+tbox : [2] -> GF28 -> [4]GF28
+tbox n x = (T0_table @ x) >>> n
+
+T0_table : [256][4] GF28
+T0_table = [ [gf28Mult (2, s), s, s, gf28Mult (3, s) ] | s <- sbox ]
+
+
 /** AES Encryption with an expanded key.
 This is useful if many things will be encrypted with the same key. */
 aesEncryptWithSchedule : KeySchedule -> [128] -> [128]
@@ -31,7 +45,6 @@ aesEncryptWithSchedule (kInit,ks,kFinal) pt =
   where
   state0 = AddRoundKey(kInit, msgToState pt)
   rounds = [state0] # [ AESRound (rk, s) | rk <- ks | s <- rounds ]
-
 
 /** AES decryption with an expanded key.
 This is useful if many things will be decrypted with the same key. */

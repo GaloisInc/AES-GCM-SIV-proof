@@ -21,7 +21,7 @@ encrypt : KeySchedule -> State -> State
 encrypt (kInit, ks, kFinal) pt = AESFinalRound`{0} (kFinal, rounds ! 0)
   where
   state0 = AddRoundKey`{0} (kInit, pt)
-  rounds = [state0] # [ AESRound`{0} (rk, s) | rk <- ks | s <- rounds ]
+  rounds = [state0] # [ tbox_round`{0} rk s | rk <- ks | s <- rounds ]
 
 
 

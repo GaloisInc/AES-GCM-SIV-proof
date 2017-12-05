@@ -3,7 +3,7 @@
 // Takes about 10 mins on my computer.
 AES_128_Key_Expansion <-
   proof
-    skipping "AES_128_Key_Expansion"
+    proving "AES_128_Key_Expansion"
     c_code
     "AES_128_Key_Expansion"
     []
@@ -13,7 +13,7 @@ AES_128_Key_Expansion <-
       ks                     <- allocArrayOut "ks" 44 i32;
                                 // 11 rounds, at 4 * 32 each
       crucible_execute_func [ userkey, ks ];
-      pointsTo ks {{ flatSchedule (expand_key (join val_userkey)) }};
+      pointsTo ks {{ flatSchedule (expand_key128 (join val_userkey)) }};
     }
     abc;
 
@@ -21,11 +21,11 @@ AES_128_Key_Expansion <-
 // Takes about 9 hours on my computer.
 AES_128_Encrypt <-
   proof
-    skipping "AES_128_Encrypt"
+    proving "AES_128_Encrypt"
     c_code
     "AES_128_Encrypt"
-    [ emulated_aesenc_row_shifting
-    , emulated_aesenc_substitute_bytes
+    [ emulated_aesenc
+    , emulated_aesenclast
     ]
     false
     do {
@@ -33,9 +33,9 @@ AES_128_Encrypt <-
       (in_,val_in) <- allocArrayIn "in"   4 i32;
       (ks,val_ks)  <- allocArrayIn "ks"  44 i32;
       crucible_execute_func [ out, in_, ks ];
-      pointsTo out {{ withState (encrypt (unflatShedule val_ks)) val_in }};
+      pointsTo out {{ withState (encryptState128 (unflatShedule val_ks)) val_in }};
     }
-    abc;
+    (unint_z3 [ "aes_round", "AESFinalRound" ]);
 
 
 let {{
@@ -129,7 +129,7 @@ AES_128_CTR <-
             )
         }};
     }
-    abc;
+    (unint_z3 ["encryptState"]);
 
 
 GCM_SIV_ENC_2_Keys <-
@@ -181,16 +181,6 @@ GCM_SIV_ENC_2_Keys <-
       crucible_postcond {{ take result == posts.0 }};
       pointsTo TAG {{ posts.1 }};
     }
-    do {
-      unfolding ["expand_key","expandKey1","encrypt","derive_key","aes"
-                ,"gcm_siv_plus", "encryptWithSchedule","polyvalFrom"];
-      unint_z3 [ // "polyvalFrom"    // For polyval
-                 "counter_mode"   // AES_128_CTR
-               , "expandKey"
-               , "AESFinalRound"
-               , "AESRound"
-               , "AddRoundKey"
-               , "dot"
-               ];
-    };
+    (unint_z3 [ "counter_mode", "expandKey", "AESFinalRound", "aes_round"
+              , "dot" ]);
 

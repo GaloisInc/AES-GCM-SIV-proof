@@ -36,7 +36,7 @@ emulated_aesenc_substitute_bytes <-
     false
     do { (ptr_data, data) <- allocArrayIn "data" 4 i32;
          crucible_execute_func [ ptr_data ];
-         pointsTo ptr_data {{ withState sub_bytes data }};
+         pointsTo ptr_data {{ withState sub_bytes128 data }};
          returns {{ 1 : [32] }};
        }
     rme;
@@ -52,9 +52,45 @@ emulated_aesenc_row_shifting <-
     do {
       (ptr_data, data) <- allocArrayIn "data" 4 i32;
       crucible_execute_func [ ptr_data ];
-      pointsTo ptr_data {{ withState shift_rows data }};
+      pointsTo ptr_data {{ withState shift_rows128 data }};
       returns {{ 1 : [32] }};
     }
     z3;
+
+emulated_aesenclast <-
+  proof
+    proving "emulated_aesenclast"
+    c_code
+    "emulated_aesenclast"
+    [ emulated_aesenc_substitute_bytes
+    , emulated_aesenc_row_shifting
+    ]
+    false
+    do {
+      (_xmm1, val__xmm1) <- allocArrayIn "_xmm1" 4 i32;
+      (_xmm2, val__xmm2) <- allocArrayIn "_xmm2" 4 i32;
+      crucible_execute_func [ _xmm1, _xmm2 ];
+      let key = {{ toState val__xmm2 }};
+      pointsTo _xmm1 {{ withState (aes_final_round128 key) val__xmm1 }};
+    }
+    z3;
+
+
+emulated_aesenc <-
+  proof
+    proving "emulated_aesenc"
+    c_code
+    "emulated_aesenc"
+    []
+    false
+    do {
+      (_xmm1, val__xmm1) <- allocArrayIn "_xmm1" 4 i32;
+      (_xmm2, val__xmm2) <- allocArrayIn "_xmm2" 4 i32;
+      crucible_execute_func [ _xmm1, _xmm2 ];
+      let key = {{ toState val__xmm2 }};
+      pointsTo _xmm1 {{ withState (aes_round128 key) val__xmm1 }};
+    }
+    z3;
+
 
 

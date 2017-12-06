@@ -1,0 +1,29 @@
+// 256-bit AES
+module AES256 where
+
+import `Common::AES
+import `Common::AES as AES
+import AES as AES
+
+type State         = AES::State 2
+type KeySchedule   = AES::KeySchedule 2
+type RoundKey      = AES::RoundKey 2
+
+sub_bytes256 : State -> State
+sub_bytes256 = SubBytes`{2}
+
+shift_rows256 : State -> State
+shift_rows256 = ShiftRows`{2}
+
+expand_key256 : [256] -> KeySchedule
+expand_key256 = AES::expandKey
+
+aes_round256 : RoundKey -> State -> State
+aes_round256 = AES::aes_round`{2}
+
+aes_final_round256 : RoundKey -> State -> State
+aes_final_round256 = AES::aes_final_round`{2}
+
+encryptState256 : KeySchedule -> State -> State
+encryptState256 = AES::encryptState`{2}
+

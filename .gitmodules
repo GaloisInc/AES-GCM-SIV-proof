@@ -1,3 +1,18 @@
 [submodule "AES-GCM-SIV"]
 	path = AES-GCM-SIV
 	url = git@github.com:Shay-Gueron/AES-GCM-SIV.git
+[submodule "asm/deps/macaw"]
+	path = asm/deps/macaw
+	url = git@github.com:GaloisInc/macaw.git
+[submodule "asm/deps/flexdis86"]
+	path = asm/deps/flexdis86
+	url = git@github.com:GaloisInc/flexdis86.git
+[submodule "asm/deps/parameterized-utils"]
+	path = asm/deps/parameterized-utils
+	url = git@github.com:GaloisInc/parameterized-utils.git
+[submodule "asm/deps/dwarf"]
+	path = asm/deps/dwarf
+	url = git@github.com:GaloisInc/dwarf.git
+[submodule "asm/deps/elf-edit"]
+	path = asm/deps/elf-edit
+	url = git@github.com:GaloisInc/elf-edit.git

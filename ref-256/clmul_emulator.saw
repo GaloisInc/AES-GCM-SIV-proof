@@ -1,0 +1,39 @@
+let {{
+mul_result : [64] -> [64] -> [2][64]
+mul_result src1 src2 = reverse (split`{2} (0b0 # pmult src1 src2))
+}};
+
+mul <-
+  proof
+    proving "mul"
+    c_code
+    "mul"
+    []
+    false
+    do { src1 <- allocArg       "src1"  i64;
+         src2 <- allocArg       "src2"  i64;
+         dst  <- allocArrayOut  "dst" 2 i64;
+         crucible_execute_func [ crucible_term src1, crucible_term src2, dst ];
+         pointsTo dst {{ mul_result src1 src2 }};
+       }
+    rme;
+
+
+vclmul_emulator <-
+  proof
+    proving "vclmul_emulator"
+    c_code
+    "vclmul_emulator"
+    [mul]
+    false
+    do { (src1,src1v) <- allocArrayIn  "src1" 2 i64;
+         (src2,src2v) <- allocArrayIn  "src2" 2 i64;
+         dst          <- allocArrayOut "dst"  2 i64;
+         imm          <- allocArg      "imm"    i8;
+         crucible_precond {{ (imm || 0x11) == 0x11 }};
+         crucible_execute_func [ src1, src2, dst, crucible_term imm ];
+         pointsTo dst {{ mul_result (src1v@[imm!0]) (src2v@[imm!4]) }};
+       }
+    (unint_z3 ["mul_result"]);
+
+

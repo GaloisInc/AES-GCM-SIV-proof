@@ -1,11 +1,19 @@
-diff --git a/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_GENERAL_V02_BE b/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_GENERAL_V02_BE
-deleted file mode 100644
-index 9a24303..0000000
-Binary files a/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_GENERAL_V02_BE and /dev/null differ
-diff --git a/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_GENERAL_V02_LE b/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_GENERAL_V02_LE
-deleted file mode 100644
-index 2af13a9..0000000
-Binary files a/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_GENERAL_V02_LE and /dev/null differ
+diff --git a/AES_GCM_SIV_128/AES_GCM_SIV_128_Performance_Code/Makefile b/AES_GCM_SIV_128/AES_GCM_SIV_128_Performance_Code/Makefile
+index bdfd60e..faf54fc 100644
+--- a/AES_GCM_SIV_128/AES_GCM_SIV_128_Performance_Code/Makefile
++++ b/AES_GCM_SIV_128/AES_GCM_SIV_128_Performance_Code/Makefile
+@@ -1,9 +1,10 @@
+-GCC = /usr/intel/pkgs/gcc/5.2.0/bin/gcc -mpclmul -O3 -maes  -mavx -w
++GCC = gcc -mpclmul -O3 -maes  -mavx -w
+ ICC = icc
+ FLAGS = -DRDTSC
+ DEF= -DDETAILS -DADD_INFO
+ #DEF= -DCOUNT
+ FLAGS += -Wa,-q
++FLAGS += -no-pie
+ 
+ ALL:  GHASH 
+ 	
 diff --git a/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_c.c b/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_c.c
 index 571a400..7f25fa3 100755
 --- a/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/GCM_SIV_c.c

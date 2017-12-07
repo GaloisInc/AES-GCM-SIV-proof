@@ -16,6 +16,13 @@ executable dasm
   main-is:             Main.hs
   build-depends:       base >=4.10 && <4.11,
                        bytestring,
-                       flexdis86,
-                       elf-edit
+                       containers,
+                       lens,
+                       vector,
+                       ansi-wl-pprint,
+                       macaw-x86,
+                       macaw-base,
+                       elf-edit,
+                       parameterized-utils
+
   default-language:    Haskell2010

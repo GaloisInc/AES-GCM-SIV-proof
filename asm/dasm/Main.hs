@@ -5,34 +5,27 @@ import qualified Data.Map as Map
 import           Data.ByteString(ByteString)
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.Vector as Vector
-import           Data.Word(Word64)
 import           Data.Maybe(maybeToList)
 import           System.Environment(getArgs)
 import           System.Exit(exitFailure)
 import           System.IO(hPutStrLn,stderr)
-import           Control.Monad(unless)
-import           Control.Monad.ST(ST)
 import           Control.Lens((^.))
-import           Numeric(readHex,showHex)
 import           Text.PrettyPrint.ANSI.Leijen(pretty)
 
-import Data.Parameterized.Nonce(withGlobalSTNonceGenerator)
 import Data.Parameterized.Some(Some(..))
-import Data.ElfEdit(Elf, SomeElf(..),elfSectionName, elfSectionSize,
-                    ElfWordType, steValue, elfSymbolTableEntries,
+import Data.ElfEdit(Elf, SomeElf(..),
+                    steValue, elfSymbolTableEntries,
                     elfSymtab, elfSymbolTableEntries, steName, steType,
                     pattern STT_FUNC)
 import Data.Macaw.Memory(Memory, MemSegmentOff,
                            memWord, resolveAbsoluteAddr)
-import Data.Macaw.CFG.Block(ppBlock)
 import Data.Macaw.Memory.ElfLoader( LoadOptions(..)
                                   , LoadStyle(..)
                                   , memoryForElf, readElf)
 import Data.Macaw.Discovery(cfgFromAddrs , DiscoveryState, emptySymbolAddrMap
                            , DiscoveryFunInfo
-                           , funInfo, discoveredFunName, parsedBlocks )
-import Data.Macaw.CFG.Block(Block)
-import Data.Macaw.X86(rootLoc,disassembleBlock,x86_64_linux_info)
+                           , funInfo, parsedBlocks )
+import Data.Macaw.X86(x86_64_linux_info)
 import Data.Macaw.X86.ArchTypes(X86_64)
 
 main :: IO ()
@@ -61,7 +54,6 @@ dumpFun (addr,Some fi) =
      mapM_ printBlock (Map.elems (fi ^. parsedBlocks))
 
   where
-  showAddr a = "0x" ++ showHex a ""
   printBlock bl =
       do putStrLn "--------------------"
          mapM_ putStrLn $ map ("  " ++) $ lines $ show $ pretty bl

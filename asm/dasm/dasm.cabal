@@ -12,8 +12,8 @@ build-type:          Simple
 extra-source-files:  ChangeLog.md
 cabal-version:       >=1.10
 
-executable dasm
-  main-is:             Main.hs
+executable get-cfg
+  main-is:             GetCFG.hs
   build-depends:       base >=4.10 && <4.11,
                        bytestring,
                        containers,

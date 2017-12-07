@@ -1,5 +1,5 @@
 {-# Language DataKinds, RankNTypes, OverloadedStrings, PatternSynonyms #-}
-module Main where
+module Main (main) where
 
 import qualified Data.Map as Map
 import           Data.ByteString(ByteString)
@@ -98,37 +98,3 @@ getDiscoverState mem addr =
     []
 
 
-
-
-{-
-
-         do bytes <- LBS.readFile file
-             case parseElf bytes of
-
-               Elf32Res errs elf32 -> 
-                  do unless (null errs) $
-                       abort $ unlines $
-                                  "Malformed 32-bit elf file" : map show errs
-                     withElf elf32
-
-               Elf64Res errs elf64 ->
-                  do unless (null errs) $
-                        abort $ unlines $
-                                  "Malformed 64-bit elf file" : map show errs
-                     withElf elf64
-
-               ElfHeaderError _ err ->
-                 abort "This does not look like an elf file"
-
-
-             -- mapM_ print (disassembleBuffer bytes)
-withElf :: Elf w -> IO ()
-withElf elf =
-  case findSectionByName ".text" elf of
-    [ sec ] -> withInstructions (disassembleBuffer (elfSectionData sec))
-    [] -> abort "Failed to find .text section"
-    _  -> abort "Multiple .text sections"
-
-withInstructions :: [DisassembledAddr] -> IO ()
-withInstructions = mapM_ print
--}

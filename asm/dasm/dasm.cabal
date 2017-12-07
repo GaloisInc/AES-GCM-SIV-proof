@@ -26,3 +26,15 @@ executable get-cfg
                        parameterized-utils
   ghc-options:         -Wall
   default-language:    Haskell2010
+
+executable disassemble
+  main-is:             Disassemble.hs
+  build-depends:       base >=4.10 && <4.11,
+                       bytestring,
+                       flexdis86,
+                       elf-edit
+  ghc-options:         -Wall
+  default-language:    Haskell2010
+
+
+

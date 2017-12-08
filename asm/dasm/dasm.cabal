@@ -30,6 +30,7 @@ executable get-cfg
 executable disassemble
   main-is:             Disassemble.hs
   build-depends:       base >=4.10 && <4.11,
+                       process,
                        bytestring,
                        flexdis86,
                        elf-edit

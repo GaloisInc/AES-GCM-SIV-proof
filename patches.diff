@@ -1,5 +1,5 @@
 diff --git a/AES_GCM_SIV_128/AES_GCM_SIV_128_Performance_Code/Makefile b/AES_GCM_SIV_128/AES_GCM_SIV_128_Performance_Code/Makefile
-index bdfd60e..faf54fc 100644
+index bdfd60e..ca8cce0 100644
 --- a/AES_GCM_SIV_128/AES_GCM_SIV_128_Performance_Code/Makefile
 +++ b/AES_GCM_SIV_128/AES_GCM_SIV_128_Performance_Code/Makefile
 @@ -1,9 +1,10 @@
@@ -10,7 +10,7 @@ index bdfd60e..faf54fc 100644
  DEF= -DDETAILS -DADD_INFO
  #DEF= -DCOUNT
  FLAGS += -Wa,-q
-+FLAGS += -no-pie
++FLAGS += -no-pie -fno-stack-protector
  
  ALL:  GHASH 
  	

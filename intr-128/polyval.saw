@@ -1,0 +1,16 @@
+POLYVAL_INIT <-
+  proof
+    proving "INIT_Htable"
+    c_code
+    "INIT_Htable"
+    []
+    false
+    do{
+      (Htable, val_Htable) <- allocArrayIn "Htable" 128 i8;
+      (H     , val_H     ) <- allocArrayIn "H"      16  i8;
+
+      crucible_execute_func [Htable, H];
+
+      //crucible_return {{0}};
+    }
+    z3;

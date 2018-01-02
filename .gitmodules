@@ -16,3 +16,6 @@
 [submodule "asm/deps/elf-edit"]
 	path = asm/deps/elf-edit
 	url = git@github.com:GaloisInc/elf-edit.git
+[submodule "asm/deps/crucible"]
+	path = asm/deps/crucible
+	url = git@github.com:GaloisInc/crucible.git

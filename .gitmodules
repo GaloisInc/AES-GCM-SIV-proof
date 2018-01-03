@@ -19,3 +19,6 @@
 [submodule "asm/deps/crucible"]
 	path = asm/deps/crucible
 	url = git@github.com:GaloisInc/crucible.git
+[submodule "asm/deps/llvm-pretty"]
+	path = asm/deps/llvm-pretty
+	url = git@github.com:GaloisInc/llvm-pretty.git

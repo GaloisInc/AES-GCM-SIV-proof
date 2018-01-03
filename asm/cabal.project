@@ -3,6 +3,11 @@ packages:
   deps/parameterized-utils
   deps/macaw/base
   deps/macaw/x86
+  deps/macaw/symbolic
   deps/elf-edit
   deps/dwarf
+  deps/crucible/crucible
+  deps/crucible/crucible-llvm
+  deps/crucible/galois-matlab
+  deps/llvm-pretty
   dasm

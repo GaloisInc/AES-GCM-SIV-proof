@@ -1,0 +1,52 @@
+module Intrinsics where
+
+import `Common::AES_GCM_SIV as AES_GCM_SIV
+
+_mm_setr_epi32 : [32] -> [32] -> [32] -> [32] -> [128]
+_mm_setr_epi32 a b c d = join [a, b, c, d]
+
+_mm_loadu_si128 : [128] -> [4][32]
+_mm_loadu_si128 v = split v
+
+select_from_128 : [128] -> Bit -> [128]
+select_from_128 n b = res
+  where
+    [l,r] = split n
+    res = (if b then l else r) # zero
+
+
+_mm_clmulepi64_si128 : [128] -> [128] -> [2] -> [128 ]
+_mm_clmulepi64_si128 a b s = AES_GCM_SIV::mult`{0}`{0} l r
+  where
+  l = select_from_128 a (s @ 0)
+  r = select_from_128 b (s @ 1)
+
+_mm_xor_si128 : [128] -> [128] -> [128]
+_mm_xor_si128 a b = a ^ b
+
+//this is a word rotation
+_mm_shuffle_epi32_78 : [4][32] -> [4][32]
+_mm_shuffle_epi32_78 l = l >>> 2
+
+//flatten and concat a and b, shifting them right by ralign bytes
+_mm_alignr_epi8 : [16][8] -> [16][8] -> [8] -> [128]
+_mm_alignr_epi8 a b ralign = take ((join (a # b)) >> (ralign * 8))
+
+INIT_Htable : {n} (fin n, n>=2) => [128] -> [n][128]
+INIT_Htable H = hs
+  where
+  hs = [H] # [ AES_GCM_SIV::dot`{0}`{0} hn H
+                | hn <- hs
+                | (j : [width n]) <- [0..n-2]]
+
+polyval_Htable : {n} (fin n, n>=2) => [128] -> [n][128] -> [128]
+polyval_Htable H X = sums ! 0
+  where
+    htable = INIT_Htable`{n} H
+    sums = [zero] # [ (AES_GCM_SIV::dot`{0}`{0} (X@i) (htable!i)) ^ sum
+                    | sum <- sums
+                    | (i : [width n]) <- [0..n-1] ]
+
+property polyval_equiv H (xs : [4][128]) =
+  AES_GCM_SIV::polyvalFrom`{0}`{0} H xs zero ==
+  polyval_Htable H xs

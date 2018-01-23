@@ -1,0 +1,29 @@
+// 128-bit AES
+module AES128 where
+
+import `Common::AES
+import `Common::AES as AES
+import AES as AES
+
+type State         = AES::State 0  /* 0 is unused */
+type KeySchedule   = AES::KeySchedule 0
+type RoundKey      = AES::RoundKey 0
+
+sub_bytes128 : State -> State
+sub_bytes128 = SubBytes`{0}
+
+shift_rows128 : State -> State
+shift_rows128 = ShiftRows`{0}
+
+expand_key128 : [128] -> KeySchedule
+expand_key128 = AES::expandKey
+
+aes_round128 : RoundKey -> State -> State
+aes_round128 = AES::aes_round`{0}
+
+aes_final_round128 : RoundKey -> State -> State
+aes_final_round128 = AES::aes_final_round`{0}
+
+encryptState128 : KeySchedule -> State -> State
+encryptState128 = AES::encryptState`{0}
+

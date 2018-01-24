@@ -29,3 +29,5 @@ Z3_BIN=$(pwd)/z3/bin
 YICES_BIN=$(pwd)/yices/bin
 
 export PATH=$SAW_BIN:$Z3_BIN:$YICES_BIN:$PATH
+
+cd ..

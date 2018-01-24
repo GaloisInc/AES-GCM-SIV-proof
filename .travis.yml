@@ -3,10 +3,7 @@ dist: trusty
 language: c
 cache:
     directories:
-        # Cache test dependencies that would normally be re-compiled for every build.
-        # This directory is unique for each entry of the build matrix per:
-        # https://docs.travis-ci.com/user/caching/#Caches-and-build-matrices
-        - test-deps
+        - deps
 
 apt:
   packages:

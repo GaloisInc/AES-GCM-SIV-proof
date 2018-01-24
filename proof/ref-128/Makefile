@@ -1,5 +1,5 @@
-CLANG=clang-4.0
-LLVM_LINK=llvm-link-4.0
+CLANG=clang-3.8
+LLVM_LINK=llvm-link-3.8
 SAW=saw
 
 bitcode/%.bc: ../../AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/%.c

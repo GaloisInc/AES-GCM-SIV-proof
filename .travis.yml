@@ -4,11 +4,11 @@ language: c
 cache:
     directories:
         - deps
-
-apt:
-  packages:
-    - clang-4.0
-    - llvm-4.0
+addons:
+  apt:
+    packages:
+      - clang-4.0
+      - llvm-4.0
 
 
 os:

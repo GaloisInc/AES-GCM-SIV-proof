@@ -2,16 +2,16 @@ CLANG=clang-4.0
 LLVM_LINK=llvm-link-4.0
 SAW=saw
 
-%.bc: src/%.c
+bitcode/%.bc: ../../AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/%.c
 	$(CLANG) -g -c -emit-llvm -o $@ $^
 
 .PHONY: proof clean run
 
-proof: ref-128.bc
+proof: bitcode/ref-128.bc
 	$(SAW) proof.saw
 
 # We join all bit-code together, as currently we don't support modular reasoning.
-ref-128.bc: aes_emulation_tables.bc aes_emulation.bc clmul_emulator.bc GCM_SIV_c.bc
+bitcode/ref-128.bc: $(addprefix bitcode/, aes_emulation_tables.bc aes_emulation.bc clmul_emulator.bc GCM_SIV_c.bc)
 	$(LLVM_LINK) -o $@ $^
 
 run:
@@ -20,7 +20,8 @@ run:
 	src/GCM_SIV_GENERAL_V02_BE
 
 clean:
-	-rm *.bc
+	-rm -f *.bc
+	-rm -f bitcode/*.bc
 
 
 

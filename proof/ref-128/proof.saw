@@ -2,7 +2,7 @@
 include "common.saw";
 
 // C code that needs to proving
-c_code <- llvm_load_module "ref-128.bc";
+c_code <- llvm_load_module "bitcode/ref-128.bc";
 
 // Specs
 import "../cryptol-specs/AES128.cry";

@@ -1,0 +1,30 @@
+sudo: required
+dist: trusty
+language: c
+cache:
+    directories:
+        # Cache test dependencies that would normally be re-compiled for every build.
+        # This directory is unique for each entry of the build matrix per:
+        # https://docs.travis-ci.com/user/caching/#Caches-and-build-matrices
+        - test-deps
+
+apt:
+  packages:
+    - clang-3.8
+    - llvm-3.8
+
+
+os:
+  - linux
+
+env:
+  - SAWPROOF=ref-128
+  - SAWPROOF=ref-256
+
+
+install:
+  - . .travis/install_saw.sh
+
+script:
+  - cd proof/ref-128
+  - make

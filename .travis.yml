@@ -24,4 +24,4 @@ install:
 
 script:
   - cd proof/ref-128
-  - make
+  - travis_wait 50 make

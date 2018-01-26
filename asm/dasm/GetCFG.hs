@@ -13,7 +13,9 @@ import           Control.Lens((^.))
 import           Text.PrettyPrint.ANSI.Leijen(pretty)
 
 import Data.Parameterized.Some(Some(..))
-import Data.ElfEdit(Elf, SomeElf(..),
+import Data.ElfEdit(Elf
+                   , parseElf
+                   , ElfGetResult(..),
                     steValue, elfSymbolTableEntries,
                     elfSymtab, elfSymbolTableEntries, steName, steType,
                     pattern STT_FUNC)
@@ -21,8 +23,8 @@ import Data.Macaw.Memory(Memory, MemSegmentOff,
                            memWord, resolveAbsoluteAddr)
 import Data.Macaw.Memory.ElfLoader( LoadOptions(..)
                                   , LoadStyle(..)
-                                  , memoryForElf, readElf)
-import Data.Macaw.Discovery(cfgFromAddrs , DiscoveryState, emptySymbolAddrMap
+                                  , memoryForElf)
+import Data.Macaw.Discovery(cfgFromAddrs , DiscoveryState
                            , DiscoveryFunInfo
                            , funInfo, parsedBlocks )
 import Data.Macaw.X86(x86_64_linux_info)
@@ -69,10 +71,12 @@ findFun elf mem name =
 
 getElf :: FilePath -> IO (Elf 64)
 getElf path =
-  do elf <- readElf path
-     case elf of
-       Elf64 e -> return e
-       Elf32 _ -> fail "Currently we only support 64-bit ELF."
+  do bytes <- BS.readFile path
+     case parseElf bytes of
+       Elf64Res [] e -> return e
+       Elf64Res _ _  -> fail "Parse errors in 64-bit ELF."
+       Elf32Res _ _  -> fail "Currently we only support 64-bit ELF."
+       ElfHeaderError {} -> fail "Elf header error"
 
 getMemory :: Elf 64 -> IO (Memory 64)
 getMemory elf =
@@ -93,7 +97,7 @@ getDiscoverState mem addr =
   cfgFromAddrs
     x86_64_linux_info
     mem
-    emptySymbolAddrMap
+    Map.empty
     [addr]
     []
 

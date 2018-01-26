@@ -1,4 +1,5 @@
 {-# Language DataKinds, RankNTypes, OverloadedStrings, PatternSynonyms #-}
+{-# Language FlexibleContexts #-}
 module Main (main) where
 
 import qualified Data.Map as Map
@@ -19,6 +20,7 @@ import Data.ElfEdit(Elf
                     steValue, elfSymbolTableEntries,
                     elfSymtab, elfSymbolTableEntries, steName, steType,
                     pattern STT_FUNC)
+import Data.Macaw.CFG.Core
 import Data.Macaw.Memory(Memory, MemSegmentOff,
                            memWord, resolveAbsoluteAddr)
 import Data.Macaw.Memory.ElfLoader( LoadOptions(..)
@@ -26,9 +28,11 @@ import Data.Macaw.Memory.ElfLoader( LoadOptions(..)
                                   , memoryForElf)
 import Data.Macaw.Discovery(cfgFromAddrs , DiscoveryState
                            , DiscoveryFunInfo
-                           , funInfo, parsedBlocks )
+                           , funInfo, parsedBlocks)
+import Data.Macaw.Discovery.State(StatementList(..), blockStatementList)
 import Data.Macaw.X86(x86_64_linux_info)
 import Data.Macaw.X86.ArchTypes(X86_64)
+import  Text.PrettyPrint.ANSI.Leijen as PP hiding ((<$>))
 
 main :: IO ()
 main =
@@ -58,7 +62,18 @@ dumpFun (addr,Some fi) =
   where
   printBlock bl =
       do putStrLn "--------------------"
-         mapM_ putStrLn $ map ("  " ++) $ lines $ show $ pretty bl
+         printStatList (blockStatementList bl)
+         -- mapM_ putStrLn $ map ("  " ++) $ lines $ show $ pretty bl
+
+  printStatList xs = mapM_ printStmt (stmtsNonterm xs)
+
+  printStmt x = case x of
+                  AssignStmt asg ->
+                   case assignRhs asg of
+                     EvalArchFn f _ ->
+                        print =<< ppArchFn (\_ -> pure (text "_")) f
+                     _ -> return ()
+                  _ -> return ()
 
 findFun :: Elf 64 -> Memory 64 -> ByteString -> [ MemSegmentOff 64 ]
 findFun elf mem name =

@@ -19,6 +19,21 @@
 [submodule "asm/deps/crucible"]
 	path = asm/deps/crucible
 	url = git@github.com:GaloisInc/crucible.git
+[submodule "asm/deps/saw-core"]
+	path = asm/deps/saw-core
+	url = git@github.com:GaloisInc/saw-core.git
+[submodule "asm/deps/saw-core-aig"]
+	path = asm/deps/saw-core-aig
+	url = git@github.com:GaloisInc/saw-core-aig.git
+[submodule "asm/deps/saw-core-sbv"]
+	path = asm/deps/saw-core-sbv
+	url = git@github.com:GaloisInc/saw-core-sbv.git
 [submodule "asm/deps/llvm-pretty"]
 	path = asm/deps/llvm-pretty
-	url = git@github.com:GaloisInc/llvm-pretty.git
+	url = git@github.com:elliottt/llvm-pretty.git
+[submodule "asm/deps/cryptol"]
+	path = asm/deps/cryptol
+	url = git@github.com:GaloisInc/cryptol.git
+[submodule "asm/abcBridge"]
+	path = asm/deps/abcBridge
+	url = https://github.com/GaloisInc/abcBridge.git

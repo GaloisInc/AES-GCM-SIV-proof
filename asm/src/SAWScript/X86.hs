@@ -1,22 +1,12 @@
-{-# Language DataKinds, OverloadedStrings, GADTs, TypeApplications #-}
+{-# Language DataKinds, OverloadedStrings #-}
 {-# Language RankNTypes, TypeOperators #-}
-{-# Language RecordWildCards #-}
-{-# Language AllowAmbiguousTypes, ScopedTypeVariables #-}
-{-# Language FlexibleContexts #-}
-{-# Language PatternSynonyms #-}
-{-# Language ImplicitParams #-}
-{-# OPTIONS_GHC -w #-}
-
 module SAWScript.X86
   ( Options(..)
   , proof
   , proofWithOptions
   , linuxInfo
   , bsdInfo
-
-    -- * Specifications
   , Fun(..)
-
   ) where
 
 
@@ -25,7 +15,6 @@ import Control.Monad(unless)
 import Control.Monad.ST(ST,stToIO)
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
-import           Data.Map ( Map )
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import           Data.Text.Encoding(decodeUtf8)
@@ -35,19 +24,15 @@ import Data.ElfEdit (Elf, parseElf, ElfGetResult(..))
 
 import Data.Parameterized.Some(Some(..))
 import Data.Parameterized.Classes(knownRepr)
-import Data.Parameterized.Context(Assignment,EmptyCtx,(::>),field,Idx)
+import Data.Parameterized.Context(Assignment,EmptyCtx,(::>))
 import Data.Parameterized.Nonce(globalNonceGenerator)
 
 -- Crucible
 import Lang.Crucible.Config(initialConfig)
-import Lang.Crucible.Vector(Vector)
-import qualified Lang.Crucible.Vector as Vector
 import Lang.Crucible.CFG.Core(SomeCFG(..))
 import Lang.Crucible.CFG.Common(freshGlobalVar,GlobalVar)
-import Lang.Crucible.Types
-import Lang.Crucible.Solver.Interface (Pred)
 import Lang.Crucible.Simulator.RegMap(regValue)
-import Lang.Crucible.Simulator.RegValue(RegValue,RegValue'(unRV))
+import Lang.Crucible.Simulator.RegValue(RegValue)
 import Lang.Crucible.Simulator.GlobalState(lookupGlobal)
 import Lang.Crucible.Simulator.ExecutionTree
           (GlobalPair,gpValue,ExecResult(..),PartialResult(..)
@@ -57,7 +42,7 @@ import Lang.Crucible.FunctionHandle(HandleAllocator,newHandleAllocator)
 import Lang.Crucible.FunctionName(functionNameFromText)
 
 -- Crucible LLVM
-import Lang.Crucible.LLVM.MemModel (LLVMPointerType,Mem,mkMemVar)
+import Lang.Crucible.LLVM.MemModel (Mem,mkMemVar)
 
 -- Crucible SAW
 import Lang.Crucible.Solver.SAWCoreBackend(newSAWCoreBackend)
@@ -77,9 +62,8 @@ import Data.Macaw.Memory.ElfLoader( LoadOptions(..)
 import Data.Macaw.Symbolic( ArchRegStruct
                           , MacawArchEvalFn,ArchRegContext,mkFunCFG,
                                                         runCodeBlock)
-import Data.Macaw.Symbolic.CrucGen(MacawSymbolicArchFunctions(..),MacawExt,
-                                   MacawCrucibleRegTypes)
-import Data.Macaw.Symbolic.PersistentState(ToCrucibleType,macawAssignToCrucM)
+import Data.Macaw.Symbolic.CrucGen(MacawSymbolicArchFunctions(..),MacawExt)
+import Data.Macaw.Symbolic.PersistentState(macawAssignToCrucM)
 import Data.Macaw.X86(X86Reg(..), x86_64_linux_info,x86_64_freeBSD_info)
 import Data.Macaw.X86.ArchTypes(X86_64)
 import Data.Macaw.X86.Symbolic
@@ -88,7 +72,7 @@ import Data.Macaw.X86.Crucible(SymFuns)
 
 
 -- Saw Core
-import Verifier.SAW.SharedTerm(Term, mkSharedContext)
+import Verifier.SAW.SharedTerm( mkSharedContext)
 import Verifier.SAW.Prelude(preludeModule)
 
 -- SAWScript
@@ -268,13 +252,6 @@ getMem st mvar =
     Nothing  -> fail ("Global heap value not initialized: " ++ show mvar)
 
 
-relate :: Options -> Regs -> Maybe (Pred Sym) -> Regs -> IO Term
-relate = undefined
-
-data Regs = XXX
-
-getRegs :: Sym -> a -> IO Regs
-getRegs = undefined
 
 
 -- | Generate a CFG for the function at the given address.

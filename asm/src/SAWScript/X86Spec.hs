@@ -1,5 +1,4 @@
 {-# Language DataKinds, TypeFamilies, TypeOperators, GADTs #-}
-{-# Language MultiParamTypeClasses #-}
 {-# Language FlexibleContexts #-}
 {-# Language ImplicitParams #-}
 {-# Language TypeApplications #-}

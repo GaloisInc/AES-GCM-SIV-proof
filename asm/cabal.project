@@ -14,8 +14,9 @@ packages:
   deps/crucible/galois-matlab
   deps/llvm-pretty
   deps/saw-core
-  deps/saw-core-aig
-  deps/saw-core-sbv
+  -- The packages below shouldn't really be needed.
   deps/cryptol
   deps/cryptol-verifier
+  deps/saw-core-aig
+  deps/saw-core-sbv
   deps/abcBridge

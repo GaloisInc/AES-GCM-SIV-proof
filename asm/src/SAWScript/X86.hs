@@ -9,7 +9,8 @@
 
 module SAWScript.X86
   ( Options(..)
-  , main
+  , proof
+  , proofWithOptions
   , linuxInfo
   , bsdInfo
 
@@ -35,8 +36,10 @@ import Data.ElfEdit (Elf, parseElf, ElfGetResult(..))
 import Data.Parameterized.Some(Some(..))
 import Data.Parameterized.Classes(knownRepr)
 import Data.Parameterized.Context(Assignment,EmptyCtx,(::>),field,Idx)
+import Data.Parameterized.Nonce(globalNonceGenerator)
 
 -- Crucible
+import Lang.Crucible.Config(initialConfig)
 import Lang.Crucible.Vector(Vector)
 import qualified Lang.Crucible.Vector as Vector
 import Lang.Crucible.CFG.Core(SomeCFG(..))
@@ -55,6 +58,9 @@ import Lang.Crucible.FunctionName(functionNameFromText)
 
 -- Crucible LLVM
 import Lang.Crucible.LLVM.MemModel (LLVMPointerType,Mem,mkMemVar)
+
+-- Crucible SAW
+import Lang.Crucible.Solver.SAWCoreBackend(newSAWCoreBackend)
 
 
 -- Macaw
@@ -76,12 +82,14 @@ import Data.Macaw.Symbolic.CrucGen(MacawSymbolicArchFunctions(..),MacawExt,
 import Data.Macaw.Symbolic.PersistentState(ToCrucibleType,macawAssignToCrucM)
 import Data.Macaw.X86(X86Reg(..), x86_64_linux_info,x86_64_freeBSD_info)
 import Data.Macaw.X86.ArchTypes(X86_64)
-import Data.Macaw.X86.Symbolic ( x86_64MacawSymbolicFns, x86_64MacawEvalFn)
+import Data.Macaw.X86.Symbolic
+  ( x86_64MacawSymbolicFns, x86_64MacawEvalFn, newSymFuns )
 import Data.Macaw.X86.Crucible(SymFuns)
 
 
 -- Saw Core
-import Verifier.SAW.SharedTerm(Term)
+import Verifier.SAW.SharedTerm(Term, mkSharedContext)
+import Verifier.SAW.Prelude(preludeModule)
 
 -- SAWScript
 import SAWScript.X86Spec
@@ -130,17 +138,38 @@ data Fun = Fun { funName :: ByteString, funSpec :: FunSpec }
 
 --------------------------------------------------------------------------------
 
-main :: Options -> IO ()
-main opts =
+
+-- | Run a top-level proof.
+-- Should be used when making a standalone proof script.
+proof :: ArchitectureInfo X86_64 -> FilePath -> Fun -> IO ()
+proof archi file fun =
+  do cfg <- initialConfig 0 []
+     sc  <- mkSharedContext preludeModule
+     sym <- newSAWCoreBackend sc globalNonceGenerator cfg
+     sfs <- newSymFuns sym
+     proofWithOptions Options
+       { fileName = file
+       , function = fun
+       , archInfo = archi
+       , symFuns = sfs
+       , backend = sym
+       }
+
+-- | Run a proof using the given backend.
+-- Useful for integrating with other tool.
+proofWithOptions :: Options -> IO ()
+proofWithOptions opts =
   do elf <- getRelevant =<< getElf (fileName opts)
      translate opts elf (function opts)
+
+
 
 
 --------------------------------------------------------------------------------
 -- ELF
 
 -- | These are the parts of the ELF file that we care about.
-data RelevnatElf = RelevnatElf
+data RelevantElf = RelevantElf
   { memory  :: Memory 64
   , symMap  :: AddrSymMap 64
   }
@@ -158,7 +187,7 @@ getElf path =
 
 
 -- | Extract a Macaw "memory" from an ELF file and resolve symbols.
-getRelevant :: Elf 64 -> IO RelevnatElf
+getRelevant :: Elf 64 -> IO RelevantElf
 getRelevant elf =
   case memoryForElf opts elf of
     Left err -> malformed err
@@ -166,7 +195,7 @@ getRelevant elf =
       do let (errs,addrs) = resolveElfFuncSymbols mem ixMap elf
          unless (null errs) (malformed "Failed to resolve ELF symbols.")
          let toEntry msym = (memSymbolStart msym, memSymbolName msym)
-         return RelevnatElf { memory = mem
+         return RelevantElf { memory = mem
                             , symMap = Map.fromList (map toEntry addrs)
                             }
 
@@ -200,7 +229,7 @@ posFn = OtherPos . Text.pack . show
 
 -- | Translate an assertion about the function with the given name to
 -- a SAW core term.
-translate :: Options -> RelevnatElf -> Fun -> IO ()
+translate :: Options -> RelevantElf -> Fun -> IO ()
 translate opts elf fun =
   do let name = funName fun  
      addr <- findSymbol (symMap elf) name
@@ -251,7 +280,7 @@ getRegs = undefined
 -- | Generate a CFG for the function at the given address.
 makeCFG ::
   Options ->
-  RelevnatElf ->
+  RelevantElf ->
   ByteString ->
   MemSegmentOff 64 ->
   ST s ( HandleAllocator s

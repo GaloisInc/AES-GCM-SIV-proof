@@ -37,3 +37,9 @@
 [submodule "asm/abcBridge"]
 	path = asm/deps/abcBridge
 	url = https://github.com/GaloisInc/abcBridge.git
+[submodule "asm/deps/cryptol-verifier"]
+	path = asm/deps/cryptol-verifier
+	url = git@github.com:GaloisInc/cryptol-verifier.git
+[submodule "asm/deps/abcBridge"]
+	path = asm/deps/abcBridge
+	url = git@github.com:GaloisInc/abcBridge.git

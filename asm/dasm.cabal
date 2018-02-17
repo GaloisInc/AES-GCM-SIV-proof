@@ -40,32 +40,12 @@ library
   default-language:   Haskell2010
 
 
--- executable get-cfg
---   main-is:             GetCFG.hs
---   hs-source-dirs:      src
---   build-depends:       base >=4.10 && <4.11,
---                        bytestring,
---                        containers,
---                        lens,
---                        vector,
---                        ansi-wl-pprint,
---                        macaw-x86,
---                        macaw-base,
---                        elf-edit,
---                        parameterized-utils
---   ghc-options:         -Wall
---   default-language:    Haskell2010
--- 
--- executable disassemble
---   main-is:             Disassemble.hs
---   hs-source-dirs:      src
---   build-depends:       base >=4.10 && <4.11,
---                        process,
---                        bytestring,
---                        flexdis86,
---                        elf-edit
---   ghc-options:         -Wall
---   default-language:    Haskell2010
--- 
---
+executable test-proof
+  main-is:             TestProof.hs
+  hs-source-dirs:      proofs
+  build-depends:       base >=4.10 && <4.11,
+                       dasm
+  ghc-options:         -Wall
+  default-language:    Haskell2010
+
 

@@ -5,7 +5,9 @@ import SAWScript.X86
 import SAWScript.X86Spec
 
 main :: IO ()
-main = proof linuxInfo "a.out" Fun { funName = "f", funSpec = spec }
+main =
+  do gs <- proof linuxInfo "test/test.o" Fun { funName = "f", funSpec = spec }
+     print gs
 
 spec :: FunSpec
 spec = FunSpec

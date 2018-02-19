@@ -7,6 +7,7 @@ module SAWScript.X86
   , linuxInfo
   , bsdInfo
   , Fun(..)
+  , Goal(..)
   ) where
 
 
@@ -18,6 +19,7 @@ import qualified Data.ByteString as BS
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import           Data.Text.Encoding(decodeUtf8)
+import           Data.Foldable(toList)
 import           Control.Lens((^.))
 
 import Data.ElfEdit (Elf, parseElf, ElfGetResult(..))
@@ -37,7 +39,11 @@ import Lang.Crucible.Simulator.GlobalState(lookupGlobal)
 import Lang.Crucible.Simulator.ExecutionTree
           (GlobalPair,gpValue,ExecResult(..),PartialResult(..)
           , gpGlobals)
-import Lang.Crucible.ProgramLoc(Position(OtherPos))
+import Lang.Crucible.Simulator.SimError(SimErrorReason)
+import Lang.Crucible.Solver.BoolInterface
+          (assertLoc,assertMsg,assertPred,getCurrentState)
+import Lang.Crucible.Solver.SimpleBuilder(pathState)
+import Lang.Crucible.ProgramLoc(ProgramLoc,Position(OtherPos))
 import Lang.Crucible.FunctionHandle(HandleAllocator,newHandleAllocator)
 import Lang.Crucible.FunctionName(functionNameFromText)
 
@@ -45,7 +51,7 @@ import Lang.Crucible.FunctionName(functionNameFromText)
 import Lang.Crucible.LLVM.MemModel (Mem,mkMemVar)
 
 -- Crucible SAW
-import Lang.Crucible.Solver.SAWCoreBackend(newSAWCoreBackend)
+import Lang.Crucible.Solver.SAWCoreBackend(newSAWCoreBackend, proofObligs, toSC)
 
 
 -- Macaw
@@ -72,7 +78,8 @@ import Data.Macaw.X86.Crucible(SymFuns)
 
 
 -- Saw Core
-import Verifier.SAW.SharedTerm( mkSharedContext)
+import Verifier.SAW.SharedTerm(Term, mkSharedContext)
+import Verifier.SAW.Term.Pretty(showTerm)
 import Verifier.SAW.Prelude(preludeModule)
 
 -- SAWScript
@@ -125,7 +132,7 @@ data Fun = Fun { funName :: ByteString, funSpec :: FunSpec }
 
 -- | Run a top-level proof.
 -- Should be used when making a standalone proof script.
-proof :: ArchitectureInfo X86_64 -> FilePath -> Fun -> IO ()
+proof :: ArchitectureInfo X86_64 -> FilePath -> Fun -> IO [Goal]
 proof archi file fun =
   do cfg <- initialConfig 0 []
      sc  <- mkSharedContext preludeModule
@@ -141,7 +148,7 @@ proof archi file fun =
 
 -- | Run a proof using the given backend.
 -- Useful for integrating with other tool.
-proofWithOptions :: Options -> IO ()
+proofWithOptions :: Options -> IO [Goal]
 proofWithOptions opts =
   do elf <- getRelevant =<< getElf (fileName opts)
      translate opts elf (function opts)
@@ -213,9 +220,9 @@ posFn = OtherPos . Text.pack . show
 
 -- | Translate an assertion about the function with the given name to
 -- a SAW core term.
-translate :: Options -> RelevantElf -> Fun -> IO ()
+translate :: Options -> RelevantElf -> Fun -> IO [Goal]
 translate opts elf fun =
-  do let name = funName fun  
+  do let name = funName fun
      addr <- findSymbol (symMap elf) name
      (halloc, SomeCFG cfg) <- stToIO (makeCFG opts elf name addr)
 
@@ -235,11 +242,13 @@ translate opts elf fun =
                   TotalRes gp -> return gp
                   PartialRes _pre gp _ab -> return gp
                   -- XXX: we ignore the _pre, as it should be subsumed
-                  -- by the assertions in the backed. Ask Rob D. for details.
+                  -- by the assertions in the backend. Ask Rob D. for details.
              _ -> malformed "Failed to finish execution"
 
      mem <- getMem gp mvar
      runPostSpec sym (regValue (gp ^. gpValue)) mem postSpec
+
+     getGoals sym
 
 
 -- | Get the current model of the memory.
@@ -281,11 +290,41 @@ makeCFG opts elf name addr =
 
 
 
+--------------------------------------------------------------------------------
+-- Goals
 
+data Goal = Goal
+  { gAssumes :: [ Term ]              -- ^ Assuming these
+  , gShows   :: Term                  -- ^ We need to show this
+  , gLoc     :: ProgramLoc            -- ^ The goal came from here
+  , gMessage :: Maybe SimErrorReason  -- ^ We should say this if the proof fails
+  }
+
+getGoals :: Sym -> IO [Goal]
+getGoals sym =
+  do s <- getCurrentState sym
+     mapM toGoal (toList (s ^. pathState . proofObligs))
+  where
+  toGoal (asmps,g) =
+    do as <- mapM (toSC sym) (toList asmps)
+       p  <- toSC sym (g ^. assertPred)
+       return Goal { gAssumes = as
+                   , gShows   = p
+                   , gLoc     = assertLoc g
+                   , gMessage = assertMsg g
+                   }
+
+instance Show Goal where
+  showsPrec _ g = showString "Goal { gAssumes = "
+                . showList (map (show . showTerm) (gAssumes g))
+                . showString ", gShows = " . shows (showTerm (gShows g))
+                . showString ", gLoc = " . shows (gLoc g)
+                . showString ", gMessage = " . shows (gMessage g)
+                . showString " }"
 
 
 --------------------------------------------------------------------------------
--- Specialize 
+-- Specialize the generic functions to the X86.
 
 -- | All functions related to X86.
 x86 :: MacawSymbolicArchFunctions X86_64

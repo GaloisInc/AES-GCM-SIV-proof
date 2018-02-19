@@ -14,3 +14,32 @@ include "aes_emulation.saw";
 include "GCM_SIV_c.saw";
 
 
+mul <- mul_p proving;
+vclmul_emulator <- vclmul_emulator_p proving  [mul];
+
+emulated_aesenc_substitute_bytes <- emulated_aesenc_substitute_bytes_p proving;
+emulated_aesenc_row_shifting <- emulated_aesenc_row_shifting_p proving;
+emulated_aesenclast <- emulated_aesenclast_p proving
+    [ emulated_aesenc_substitute_bytes
+    , emulated_aesenc_row_shifting
+    ];
+emulated_aesenc <- emulated_aesenc_p proving;
+
+AES_128_Key_Expansion <- AES_128_Key_Expansion_p skipping;
+AES_128_Encrypt <- AES_128_Encrypt_p skipping
+    [ emulated_aesenc
+    , emulated_aesenclast
+    ];
+gfmul_int <- gfmul_int_p proving [vclmul_emulator];
+polyval_msg <- provePOLYVAL (bytesToBlocks msg_size_bytes) proving [ vclmul_emulator, gfmul_int ];
+polyval_aad <- provePOLYVAL (bytesToBlocks aad_size_bytes) proving [ vclmul_emulator, gfmul_int ];
+polyval_len <- provePOLYVAL 2 proving [ vclmul_emulator, gfmul_int ];
+AES_128_CTR <- AES_128_CTR_p proving [ AES_128_Encrypt ];
+GCM_SIV_ENC_2_Keys <- GCM_SIV_ENC_2_Keys_p proving
+    [ AES_128_Key_Expansion
+    , AES_128_Encrypt
+    , AES_128_CTR
+    , polyval_len
+    , polyval_aad
+    , polyval_msg
+    ];

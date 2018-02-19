@@ -1,10 +1,10 @@
-CLANG=clang-3.8
-LLVM_LINK=llvm-link-3.8
+CLANG=clang-4.0
+LLVM_LINK=llvm-link-4.0
 SAW=saw
 
 all: proof
 
-bitcode/%.bc: bitcode/ ../../AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/%.c
+bitcode/%.bc: bitcode/ ../../AES-GCM-SIV/AES_GCM_SIV_128/AES_GCM_SIV_128_Reference_Code/%.c
 	$(CLANG) -g -c -emit-llvm -o $@ $^
 
 .PHONY: proof clean run bitcode/

@@ -1,9 +1,9 @@
 
 // From GCM_SIV_c.c
 // Takes about 10 mins on my computer.
-AES_128_Key_Expansion <-
+let AES_128_Key_Expansion_p really =
   proof
-    proving "AES_128_Key_Expansion"
+    really "AES_128_Key_Expansion"
     c_code
     "AES_128_Key_Expansion"
     []
@@ -19,14 +19,12 @@ AES_128_Key_Expansion <-
 
 
 // Takes about 9 hours on my computer.
-AES_128_Encrypt <-
+let AES_128_Encrypt_p really ovs =
   proof
-    proving "AES_128_Encrypt"
+    really "AES_128_Encrypt"
     c_code
     "AES_128_Encrypt"
-    [ emulated_aesenc
-    , emulated_aesenclast
-    ]
+    ovs
     false
     do {
       out          <- allocArrayOut "out" 4 i32;
@@ -51,12 +49,12 @@ from64s xs = [ from64 arr | arr <- split xs ]
 
 }};
 
-gfmul_int <-
+let gfmul_int_p really ovs =
   proof
-    proving "gfmul_int"
+    really "gfmul_int"
     c_code
     "gfmul_int"
-    [vclmul_emulator]
+    ovs
     false
     do {
       (a,val_a) <- allocArrayIn "a" 2 i64;
@@ -69,12 +67,12 @@ gfmul_int <-
     rme;
 
 
-let provePOLYVAL n =
+let provePOLYVAL n really ovs=
   proof
-    proving (str_concat "POLYVAL, input size = " (show n))
+    really (str_concat "POLYVAL, input size = " (show n))
     c_code
     "POLYVAL"
-    [ vclmul_emulator, gfmul_int ]
+    ovs
     false
     do {
       (input,val_input)   <- allocArrayIn "input" n  i64;
@@ -99,17 +97,12 @@ let bytesToBlocks x = eval_size {| 2 * ((8 * x) /^ 128) |};
 let paddedToBlock n = eval_size {| n + (n %^ 16) |};
 
 
-polyval_msg <- provePOLYVAL (bytesToBlocks msg_size_bytes);
-polyval_aad <- provePOLYVAL (bytesToBlocks aad_size_bytes);
-polyval_len <- provePOLYVAL 2;
-
-
-AES_128_CTR <-
+let AES_128_CTR_p really ovs=
   proof
-    proving "AES_128_CTR"
+    really "AES_128_CTR"
     c_code
     "AES_128_CTR"
-    [ AES_128_Encrypt ]
+    ovs
     false
     do {
       let paddedMsg = paddedToBlock msg_size_bytes;
@@ -132,18 +125,12 @@ AES_128_CTR <-
     (unint_z3 ["encryptState"]);
 
 
-GCM_SIV_ENC_2_Keys <-
+let GCM_SIV_ENC_2_Keys_p really ovs=
   proof
-    proving "GCM_SIV_ENC_2_Keys"
+    really "GCM_SIV_ENC_2_Keys"
     c_code
     "GCM_SIV_ENC_2_Keys"
-    [ AES_128_Key_Expansion
-    , AES_128_Encrypt
-    , AES_128_CTR
-    , polyval_len
-    , polyval_aad
-    , polyval_msg
-    ]
+    ovs
     false
     do {
       let paddedMsg = paddedToBlock msg_size_bytes;

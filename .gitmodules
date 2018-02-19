@@ -1,4 +1,4 @@
 [submodule "AES-GCM-SIV"]
 	path = AES-GCM-SIV
-	url = https://github.com/Shay-Gueron/AES-GCM-SIV.git
+	url = https://github.com/galoisinc/AES-GCM-SIV.git
 	branch = master

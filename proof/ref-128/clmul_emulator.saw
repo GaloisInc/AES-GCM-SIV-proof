@@ -3,9 +3,9 @@ mul_result : [64] -> [64] -> [2][64]
 mul_result src1 src2 = reverse (split`{2} (0b0 # pmult src1 src2))
 }};
 
-mul <-
+let mul_p really =
   proof
-    proving "mul"
+    really "mul"
     c_code
     "mul"
     []
@@ -19,12 +19,12 @@ mul <-
     rme;
 
 
-vclmul_emulator <-
+let vclmul_emulator_p really ovs =
   proof
-    proving "vclmul_emulator"
+    really "vclmul_emulator"
     c_code
     "vclmul_emulator"
-    [mul]
+    ovs
     false
     do { (src1,src1v) <- allocArrayIn  "src1" 2 i64;
          (src2,src2v) <- allocArrayIn  "src2" 2 i64;

@@ -15,13 +15,18 @@ os:
   - linux
 
 env:
-  - SAWPROOF=ref-128
-  - SAWPROOF=ref-256
+  - SAWPROOF=ref-128 PROOF=aes_encrypt_proof
+  - SAWPROOF=ref-128 PROOF=proof
+  - SAWPROOF=ref-128 PROOF=aes_emulation
+  - SAWPROOF=ref-256 PROOF=aes_encrypt_proof
+  - SAWPROOF=ref-256 PROOF=proof
+  - SAWPROOF=ref-256 PROOF=aes_emulation
+
 
 
 install:
   - . .travis/install_saw.sh
 
 script:
-  - cd proof/ref-128
-  - travis_wait 50 make
+  - cd proof/$SAWPROOF
+  - travis_wait 50 make $PROOF

@@ -1,4 +1,4 @@
-{-# Language OverloadedStrings #-}
+{-# Language OverloadedStrings, RecordWildCards, GADTs #-}
 module Main where
 
 import SAWScript.X86
@@ -11,8 +11,21 @@ main =
 
 spec :: FunSpec
 spec = FunSpec
-  { funPre =  undefined
+  { funPre = pre
   , funPost = \_ -> return ()
   }
+
+pre =
+  do ipFun <- freshRegs
+     let valIP = ipFun IP
+     valGPReg  <- freshGPRegs (const (GPUse AsBits))
+     valVecReg <- freshRegs
+     valFPReg  <- freshRegs
+     valFlag   <- freshRegs
+     valX87Status <- freshRegs
+     valX87TopF  <- freshRegs
+     let valX87Top = valX87TopF X87Top
+     valX87Tag <- freshRegs
+     return RegAssign { .. }
 
 

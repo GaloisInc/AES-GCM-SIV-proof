@@ -20,6 +20,7 @@ module SAWScript.X86Spec
   , fresh
   , assume
   , freshRegs
+  , freshGPRegs, GPRegTy(..)
   , allocBytes
   , allocArray
   , Mutability(..)
@@ -56,7 +57,7 @@ module SAWScript.X86Spec
   , X87Top(..)
   , X87Tag(..)
 
-  , RegAssign(..)
+  , RegAssign(..), GPRegVal(..)
 
     -- * Connection with other tools
   , Sym
@@ -336,6 +337,11 @@ io m = Spec (\_ _ s -> do a <- m
 getSym :: Spec p Sym
 getSym = Spec (\r _ s -> return (r,s))
 
+withSym :: (Sym -> IO a) -> Spec p a
+withSym f =
+  do s <- getSym
+     io (f s)
+
 updMem :: (Sym -> RegValue Sym Mem -> IO (a, RegValue Sym Mem)) -> Spec Pre a
 updMem f = Spec (\r _ s -> f r s)
 
@@ -368,12 +374,27 @@ fresh x str =
     Bits3     -> freshBits str x
     BigFloat  -> freshBits str x
 
+-- | Generate fresh values for all general purpose registers.
+freshGPRegs ::
+  (GPReg -> GPRegTy)
+  {- ^ Specifies if the fresh value is bits or a pointer -} ->
+  Spec Pre (GPReg -> GPRegVal)
+freshGPRegs ty =
+  do vs <- Vector.fromList <$> mapM mk elemList
+     return (\x -> vs Vector.! fromEnum x)
+  where
+  mk r = case ty r of
+           GPUse AsBits -> GPBits <$> fresh knownX86 (show r)
+           GPUse AsPtr  -> GPPtr  <$> fresh knownX86 (show r)
+
+
+
 -- | An uninitialized boolean value.
 freshBool :: String -> Spec Pre (Value ABool)
 freshBool str =
-  do sym <- getSym
-     io $ do nm <- symName str
-             Value <$> freshConstant sym nm BaseBoolRepr
+  withSym $ \sym ->
+    do nm <- symName str
+       Value <$> freshConstant sym nm BaseBoolRepr
 
 
 
@@ -384,26 +405,42 @@ freshBits ::
   X86 t ->
   Spec Pre (Value t)
 freshBits str x =
-  do sym <- getSym
-     io $ do nm <- symName str
-             bv <- freshConstant sym nm (BaseBVRepr (bitSizeNat x))
-             value x <$> llvmPointer_bv sym bv
+  withSym $ \sym ->
+     do nm <- symName str
+        bv <- freshConstant sym nm (BaseBVRepr (bitSizeNat x))
+        value x <$> llvmPointer_bv sym bv
 
 
 
 -- | An uninitialized pointer value.
 freshPtr :: String -> Spec Pre (Value APtr)
 freshPtr str =
-  getSym >>= \sym -> io (
-  do base_nm <- symName (str ++ "_base")
-     off_nm  <- symName (str ++ "_offset")
-     base    <- freshConstant sym base_nm BaseNatRepr
-     offs    <- freshConstant sym off_nm (BaseBVRepr knownNat)
-     ok <- notPred sym =<< natEq sym base =<< natLit sym 0
-     addAssertion sym ok
-        (AssertFailureSimError "[somePtr] pointer used as a bit-vector")
-     return (Value (LLVMPointer base offs))
-  )
+  do ptr <- withSym $ \sym ->
+            do base_nm <- symName (str ++ "_base")
+               off_nm  <- symName (str ++ "_offset")
+               base    <- freshConstant sym base_nm BaseNatRepr
+               offs    <- freshConstant sym off_nm (BaseBVRepr knownNat)
+               return (Value (LLVMPointer base offs))
+     isPtr ptr True
+     return ptr
+
+
+-- | Assert if given Crucible value represents a pointer or not.
+isPtr :: (Rep t ~ LLVMPointerType 64) =>
+         Value t ->
+         Bool ->
+         Spec p ()
+isPtr (Value (LLVMPointer base _)) yes =
+  withSym $ \sym ->
+     do isBits <- natEq sym base =<< natLit sym 0
+        ok <- if yes then notPred sym isBits else return isBits
+        let msg = if yes then "Expected a pointer, but encounterd a bit value."
+                         else "Expected a bit value, but encounterd a pointer."
+        addAssertion sym ok (AssertFailureSimError msg)
+
+
+
+
 
 
 -- | Generate fresh values for a class of registers.
@@ -429,9 +466,10 @@ assert ::
   String  {- ^ A message to show if the assrtion failes -} ->
   Spec Post ()
 assert p msg =
-  do sym <- getSym
-     io $ do ok <- bindSAWTerm sym BaseBoolRepr p
-             addAssertion sym ok (AssertFailureSimError msg)
+  withSym $ \sym ->
+  do ok <- bindSAWTerm sym BaseBoolRepr p
+     addAssertion sym ok (AssertFailureSimError msg)
+
 --------------------------------------------------------------------------------
 -- SAW terms
 
@@ -441,13 +479,8 @@ class SAW (t :: X86Type) where
   toSAW :: Value t -> Spec p Term
 
 instance SAW ABool where
-  saw _ val =
-    do sym <- getSym
-       Value <$> io (bindSAWTerm sym BaseBoolRepr val)
-
-  toSAW (Value v) =
-    do sym <- getSym
-       io (toSC sym v)
+  saw _ val = withSym $ \sym -> Value <$> bindSAWTerm sym BaseBoolRepr val
+  toSAW (Value v) = withSym $ \sym -> toSC sym v
 
 instance SAW AByte  where saw = sawBits; toSAW = toSawBits
 instance SAW AWord  where saw = sawBits; toSAW = toSawBits
@@ -461,17 +494,13 @@ sawBits ::
   (Rep t ~ LLVMPointerType (BitSize t), 1 <= BitSize t) =>
   X86 t -> Term -> Spec p (Value t)
 sawBits w val =
-  do sym <- getSym
-     io $ do bv <- bindSAWTerm sym (BaseBVRepr (bitSizeNat w)) val
-             value w <$> llvmPointer_bv sym bv
+  withSym $ \sym -> do bv <- bindSAWTerm sym (BaseBVRepr (bitSizeNat w)) val
+                       value w <$> llvmPointer_bv sym bv
 
 toSawBits ::
   (Rep t ~ LLVMPointerType (BitSize t), 1 <= BitSize t) =>
   Value t -> Spec p Term
-toSawBits (Value v) =
-  do sym <- getSym
-     io $ do bv <- projectLLVM_bv sym v
-             toSC sym bv
+toSawBits (Value v) = withSym $ \sym -> toSC sym =<< projectLLVM_bv sym v
 
 
 --------------------------------------------------------------------------------
@@ -523,8 +552,8 @@ literalBits ::
   (Rep t ~ LLVMPointerType (BitSize t), 1 <= BitSize t) =>
   X86 t -> Integer -> Spec p (Value t)
 literalBits w val =
-  do sym      <- getSym
-     value w <$> io (llvmPointer_bv sym =<< bvLit sym (bitSizeNat w) val)
+  withSym $ \sym ->
+    value w <$> (llvmPointer_bv sym =<< bvLit sym (bitSizeNat w) val)
 
 
 
@@ -630,9 +659,14 @@ regValue =
 regValueGP ::
   forall n t. (Idx n (MacawCrucibleRegTypes X86_64) (LLVMPointerType 64)) =>
   GPRegUse t -> Spec Post (Value t)
-regValueGP how = case how of
-                   AsBits -> regValue @n @AQWord
-                   AsPtr  -> regValue @n @APtr
+regValueGP how =
+  case how of
+    AsBits -> do r <- regValue @n @AQWord
+                 isPtr r False
+                 return r
+    AsPtr  -> do r <- regValue @n @APtr
+                 isPtr r True
+                 return r
 
 elemList :: (Enum a, Bounded a) => [a]
 elemList = [ minBound .. maxBound ]
@@ -656,12 +690,12 @@ data GPRegUse :: X86Type -> Type where
   AsBits :: GPRegUse AQWord
   AsPtr  :: GPRegUse APtr
 
+-- | The value of a general purpose register.
+data GPRegVal = GPBits (Value AQWord) | GPPtr (Value APtr)
 
--- | If not explicitly specified, "GPReg" is used as a bit-vecotr
--- (i.e., not a pointer).
-instance GetReg GPReg where
-  type RegType GPReg = AQWord
-  getReg x = getReg (x, AsBits)
+-- | A boolean tag to classify the use of a register.
+data GPRegTy = forall t. GPUse (GPRegUse t)
+
 
 instance GetReg (GPReg,GPRegUse t) where
   type RegType (GPReg,GPRegUse t) = t
@@ -801,10 +835,11 @@ instance GetReg FPReg where
       FP6 -> regValue @(M.FPReg 6)
       FP7 -> regValue @(M.FPReg 7)
 
+
 -- | A register assignment.
 data RegAssign = RegAssign
   { valIP         :: Value AQWord
-  , valGPReg      :: forall t. GPReg -> GPRegUse t -> Value t
+  , valGPReg      :: GPReg -> GPRegVal
   , valVecReg     :: VecReg -> Value AVec
   , valFPReg      :: FPReg  -> Value ABigFloat
   , valFlag       :: Flag   -> Value ABool
@@ -889,8 +924,15 @@ macawLookup RegAssign { .. } reg =
     R.X87_C0 -> x87_status X87_C0
     R.X87_C1 -> x87_status X87_C1
     R.X87_C2 -> x87_status X87_C2
-    R.X87_C3 -> x87_status X87_C3
-    R.X87_StatusReg _ -> error "[bug] Unexpected X87 status register"
+    R.X87_StatusReg 11 -> x87_status X87_C3
+
+    -- R.X87_C3 -> x87_status X87_C3
+    -- This doesn't work because C3 is 14 in flexdis, but Macaw
+    -- expects it to be 11.
+
+
+    R.X87_StatusReg n ->
+      error ("[bug] Unexpected X87 status register: " ++ show n)
 
     R.X87_TopReg -> toRV valX87Top
 
@@ -906,7 +948,9 @@ macawLookup RegAssign { .. } reg =
 
 
   where
-  gp r          = toRV (valGPReg r AsPtr)
+  gp r          = case valGPReg r of
+                    GPBits x -> toRV x
+                    GPPtr x -> toRV x
   vec r         = toRV (valVecReg r)
   fp r          = toRV (valFPReg r)
   flag r        = toRV (valFlag r)

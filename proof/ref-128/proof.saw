@@ -25,8 +25,8 @@ emulated_aesenclast <- emulated_aesenclast_p proving
     ];
 emulated_aesenc <- emulated_aesenc_p proving;
 
-AES_128_Key_Expansion <- AES_128_Key_Expansion_p skipping;
-AES_128_Encrypt <- AES_128_Encrypt_p skipping
+AES_128_Key_Expansion <- AES_128_Key_Expansion_p proving;
+AES_128_Encrypt <- AES_128_Encrypt_p proving
     [ emulated_aesenc
     , emulated_aesenclast
     ];

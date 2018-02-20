@@ -1,5 +1,5 @@
-CLANG=clang-4.0
-LLVM_LINK=llvm-link-4.0
+CLANG=clang-3.8
+LLVM_LINK=llvm-link-3.8
 SAW=saw
 
 all: proof
@@ -12,13 +12,13 @@ bitcode/%.bc: bitcode/ ../../AES-GCM-SIV/AES_GCM_SIV_128/AES_GCM_SIV_128_Referen
 bitcode/:
 	mkdir -p bitcode/
 
-proof: bitcode/ref-127.bc
+proof: bitcode/ref-128.bc
 	$(SAW) proof.saw
 
-aes_encrypt_proof: bitcode/ref-127.bc
+aes_encrypt_proof: bitcode/ref-128.bc
 	$(SAW) aes_encrypt_proof.saw
 
-key_expand_proof: bitcode/ref-127.bc
+key_expand_proof: bitcode/ref-128.bc
 	$(SAW) key_expand_proof.saw
 
 

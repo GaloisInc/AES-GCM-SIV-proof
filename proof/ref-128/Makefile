@@ -15,12 +15,6 @@ bitcode/:
 proof: bitcode/ref-128.bc
 	$(SAW) proof.saw
 
-aes_encrypt_proof: bitcode/ref-128.bc
-	$(SAW) aes_encrypt_proof.saw
-
-key_expand_proof: bitcode/ref-128.bc
-	$(SAW) key_expand_proof.saw
-
 
 # We join all bit-code together, as currently we don't support modular reasoning.
 bitcode/ref-128.bc: $(addprefix bitcode/, aes_emulation_tables.bc aes_emulation.bc clmul_emulator.bc GCM_SIV_c.bc)

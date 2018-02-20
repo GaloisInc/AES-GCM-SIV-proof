@@ -7,7 +7,7 @@ import Control.Exception(catch)
 
 main :: IO ()
 main =
-  do gs <- proof linuxInfo "test/test.o" Fun { funName = "f", funSpec = spec }
+  do gs <- proof linuxInfo "test/a.out" Fun { funName = "f", funSpec = spec }
      print gs
   `catch` \(X86Error e) -> putStrLn e
 

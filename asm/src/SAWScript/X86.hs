@@ -186,7 +186,11 @@ getRelevant elf =
     Left err -> malformed err
     Right (ixMap,mem) ->
       do let (errs,addrs) = resolveElfFuncSymbols mem ixMap elf
-         unless (null errs) (malformed "Failed to resolve ELF symbols.")
+{-
+         unless (null errs)
+           $ malformed $ unlines $ "Failed to resolve ELF symbols:"
+                                 : map show errs
+-}
          let toEntry msym = (memSymbolStart msym, memSymbolName msym)
          return RelevantElf { memory = mem
                             , symMap = Map.fromList (map toEntry addrs)
@@ -257,7 +261,7 @@ translate opts elf fun =
 ppAbort :: AbortedResult a b -> String
 ppAbort x =
   case x of
-    AbortedExec x _ -> "Aborted execution: " ++ show x
+    AbortedExec e _ -> "Aborted execution: " ++ show e
     AbortedExit {} -> "Aborted exit"
     AbortedInfeasible {} -> "Aborted infeasible"
     AbortedBranch {} -> "Aborted branch"

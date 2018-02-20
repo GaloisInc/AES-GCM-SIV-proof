@@ -3,11 +3,13 @@ module Main where
 
 import SAWScript.X86
 import SAWScript.X86Spec
+import Control.Exception(catch)
 
 main :: IO ()
 main =
   do gs <- proof linuxInfo "test/test.o" Fun { funName = "f", funSpec = spec }
      print gs
+  `catch` \(X86Error e) -> putStrLn e
 
 spec :: FunSpec
 spec = FunSpec

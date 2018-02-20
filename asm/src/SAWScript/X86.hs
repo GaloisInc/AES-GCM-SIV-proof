@@ -8,6 +8,8 @@ module SAWScript.X86
   , bsdInfo
   , Fun(..)
   , Goal(..)
+  , X86Error(..)
+  , X86Unsupported(..)
   ) where
 
 
@@ -38,7 +40,7 @@ import Lang.Crucible.Simulator.RegValue(RegValue)
 import Lang.Crucible.Simulator.GlobalState(lookupGlobal)
 import Lang.Crucible.Simulator.ExecutionTree
           (GlobalPair,gpValue,ExecResult(..),PartialResult(..)
-          , gpGlobals)
+          , gpGlobals, AbortedResult(..))
 import Lang.Crucible.Simulator.SimError(SimErrorReason)
 import Lang.Crucible.Solver.BoolInterface
           (assertLoc,assertMsg,assertPred,getCurrentState)
@@ -243,12 +245,23 @@ translate opts elf fun =
                   PartialRes _pre gp _ab -> return gp
                   -- XXX: we ignore the _pre, as it should be subsumed
                   -- by the assertions in the backend. Ask Rob D. for details.
-             _ -> malformed "Failed to finish execution"
+             AbortedResult _ctx res ->
+               malformed $ unlines [ "Failed to finish execution"
+                                   , ppAbort res ]
 
      mem <- getMem gp mvar
      runPostSpec sym (regValue (gp ^. gpValue)) mem postSpec
 
      getGoals sym
+
+ppAbort :: AbortedResult a b -> String
+ppAbort x =
+  case x of
+    AbortedExec x _ -> "Aborted execution: " ++ show x
+    AbortedExit {} -> "Aborted exit"
+    AbortedInfeasible {} -> "Aborted infeasible"
+    AbortedBranch {} -> "Aborted branch"
+
 
 
 -- | Get the current model of the memory.

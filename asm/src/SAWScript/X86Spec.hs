@@ -20,7 +20,9 @@ module SAWScript.X86Spec
   , fresh
   , assume
   , freshRegs
-  , freshGPRegs, GPRegTy(..)
+  , freshGP
+  , setupGPRegs, GPSetup(..), GPValue, gpUse
+  , GetReg(..)
   , allocBytes
   , allocArray
   , Mutability(..)
@@ -44,9 +46,9 @@ module SAWScript.X86Spec
   , Value
   , SAW(..)
   , Literal(..)
+  , ptrAdd
 
     -- * Registers
-  , GetReg(..)
   , IP(..)
   , GPReg(..), GPRegUse(..)
   , VecReg(..)
@@ -96,7 +98,8 @@ import Lang.Crucible.LLVM.MemModel
   ( Mem, emptyMem
   , LLVMPointerType, doStore, doLoad, doMalloc, doPtrAddOffset, coerceAny)
 import Lang.Crucible.LLVM.MemModel.Pointer
-  (llvmPointer_bv, projectLLVM_bv, pattern LLVMPointer, ptrAdd)
+  (llvmPointer_bv, projectLLVM_bv, pattern LLVMPointer)
+import qualified Lang.Crucible.LLVM.MemModel.Pointer as Ptr
 import Lang.Crucible.LLVM.MemModel.Type(bitvectorType)
 import Lang.Crucible.LLVM.MemModel.Generic(AllocType(HeapAlloc), Mutability(..))
 import qualified Lang.Crucible.LLVM.MemModel.Type as LLVM
@@ -149,18 +152,18 @@ data X86 :: X86Type -> Type where
 -- | This type may be used to specify types implicitly
 -- (i.e., in contexts where the type can be inferred automatically).
 class KnownX86 t where
-  knownX86 :: X86 t
+  infer :: X86 t
 
-instance KnownX86 AByte     where knownX86 = Byte
-instance KnownX86 AWord     where knownX86 = Word
-instance KnownX86 ADWord    where knownX86 = DWord
-instance KnownX86 AQWord    where knownX86 = QWord
-instance KnownX86 AVec      where knownX86 = Vec
-instance KnownX86 APtr      where knownX86 = Ptr
-instance KnownX86 ABool     where knownX86 = Bool
-instance KnownX86 ABits2    where knownX86 = Bits2
-instance KnownX86 ABits3    where knownX86 = Bits3
-instance KnownX86 ABigFloat where knownX86 = BigFloat
+instance KnownX86 AByte     where infer = Byte
+instance KnownX86 AWord     where infer = Word
+instance KnownX86 ADWord    where infer = DWord
+instance KnownX86 AQWord    where infer = QWord
+instance KnownX86 AVec      where infer = Vec
+instance KnownX86 APtr      where infer = Ptr
+instance KnownX86 ABool     where infer = Bool
+instance KnownX86 ABits2    where infer = Bits2
+instance KnownX86 ABits3    where infer = Bits3
+instance KnownX86 ABigFloat where infer = BigFloat
 
 
 -- | Mapping from X86 types to the Crucible types used to implement them.
@@ -375,17 +378,18 @@ fresh x str =
     BigFloat  -> freshBits str x
 
 -- | Generate fresh values for all general purpose registers.
-freshGPRegs ::
-  (GPReg -> GPRegTy)
-  {- ^ Specifies if the fresh value is bits or a pointer -} ->
+setupGPRegs ::
+  (GPReg -> GPSetup) ->
+  {- ^ Specifies how to initialize the given GP register -}
   Spec Pre (GPReg -> GPRegVal)
-freshGPRegs ty =
+setupGPRegs ty =
   do vs <- Vector.fromList <$> mapM mk elemList
      return (\x -> vs Vector.! fromEnum x)
   where
   mk r = case ty r of
-           GPUse AsBits -> GPBits <$> fresh knownX86 (show r)
-           GPUse AsPtr  -> GPPtr  <$> fresh knownX86 (show r)
+           GPFresh AsBits -> GPBits <$> fresh infer (show r)
+           GPFresh AsPtr  -> GPPtr  <$> fresh infer (show r)
+           GPUse x        -> return x
 
 
 
@@ -424,23 +428,40 @@ freshPtr str =
      isPtr ptr True
      return ptr
 
+class InPre p where
+  inPre :: Spec p Bool
 
--- | Assert if given Crucible value represents a pointer or not.
-isPtr :: (Rep t ~ LLVMPointerType 64) =>
+instance InPre Pre where
+  inPre = return True
+
+instance InPre Post where
+  inPre = return False
+
+-- | State if this value should be a pointer.
+-- In pre-condition we assume it, in post-conditions we assert it.
+isPtr :: (Rep t ~ LLVMPointerType 64, InPre p) =>
          Value t ->
          Bool ->
          Spec p ()
 isPtr (Value (LLVMPointer base _)) yes =
-  withSym $ \sym ->
-     do isBits <- natEq sym base =<< natLit sym 0
-        ok <- if yes then notPred sym isBits else return isBits
-        let msg = if yes then "Expected a pointer, but encounterd a bit value."
-                         else "Expected a bit value, but encounterd a pointer."
-        addAssertion sym ok (AssertFailureSimError msg)
+  do sym <- getSym
+     ok <- io $ do isBits <- natEq sym base =<< natLit sym 0
+                   if yes then notPred sym isBits else return isBits
 
+     pre <- inPre
+     io $ if pre
+             then addAssumption sym ok
+             else addAssertion sym ok (AssertFailureSimError msg)
+  where
+  msg | yes       = "Expected a pointer, but encounterd a bit value."
+      | otherwise = "Expected a bit value, but encounterd a pointer."
 
-
-
+-- | Generate a fresh value for a general purpose register.
+freshGP :: GPReg -> GPRegUse t -> Spec Pre (Value t)
+freshGP x u =
+  case u of
+    AsBits -> fresh QWord (show x)
+    AsPtr  -> fresh Ptr   (show x)
 
 
 -- | Generate fresh values for a class of registers.
@@ -450,7 +471,7 @@ freshRegs ::
   Spec Pre (a -> Value (RegType a))
 freshRegs =
   do vs <- Vector.fromList <$>
-              mapM (\a -> fresh knownX86 (show (a :: a))) elemList
+              mapM (\a -> fresh infer (show (a :: a))) elemList
      return (\x -> vs Vector.! fromEnum x)
 
 -- The input should be a boolean SAW Core term.
@@ -588,9 +609,16 @@ allocBytes str mut (Value n) =
     do (v,mem1) <- doMalloc sym HeapAlloc mut str m =<< projectLLVM_bv sym n
        return (Value v, mem1)
 
+-- | Advance a pointer.
+ptrAdd :: Value APtr -> Value AQWord -> Spec p (Value APtr)
+ptrAdd (Value p) (Value o) = withMem $ \sym mem ->
+  let ?ptrWidth = knownNat
+  in Value <$> (doPtrAddOffset sym mem p =<< projectLLVM_bv sym o)
 
 
--- | Allocate an array, an initialize it with the given bit-vector values.
+
+
+-- | Allocate an array, an initialize it with the given values.
 allocArray ::
   MemType t =>
   X86 t ->
@@ -614,7 +642,7 @@ allocArray ty str mut xs =
       y : more ->
         do writeMem ty ptr y
            sym     <- getSym
-           nextPtr <- io (Value <$> ptrAdd sym knownNat p bytes)
+           nextPtr <- io (Value <$> Ptr.ptrAdd sym knownNat p bytes)
            doInit bytes nextPtr more
 
 
@@ -694,8 +722,18 @@ data GPRegUse :: X86Type -> Type where
 data GPRegVal = GPBits (Value AQWord) | GPPtr (Value APtr)
 
 -- | A boolean tag to classify the use of a register.
-data GPRegTy = forall t. GPUse (GPRegUse t)
+data GPSetup = forall t. GPFresh (GPRegUse t)
+             | GPUse GPRegVal
 
+class GPValue t where
+  gpValue :: Value t -> GPRegVal
+
+instance GPValue AQWord where gpValue = GPBits
+instance GPValue APtr   where gpValue = GPPtr
+
+-- | Use the given value to initalize a general purpose register
+gpUse :: GPValue t => Value t -> GPSetup
+gpUse = GPUse . gpValue
 
 instance GetReg (GPReg,GPRegUse t) where
   type RegType (GPReg,GPRegUse t) = t
@@ -847,7 +885,6 @@ data RegAssign = RegAssign
   , valX87Top     :: Value ABits3
   , valX87Tag     :: X87Tag -> Value ABits2
   }
-
 
 
 -- | Convert a register assignment to a form suitable for Macaw CFG generation.

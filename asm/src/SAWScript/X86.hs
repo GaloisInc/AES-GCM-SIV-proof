@@ -198,7 +198,7 @@ getRelevant elf =
 
   where
   -- XXX: What options do we want?
-  opts = LoadOptions { loadRegionIndex    = Just 1
+  opts = LoadOptions { loadRegionIndex    = Just 0
                      , loadStyleOverride  = Just LoadBySection
                      , includeBSS         = False
                      }

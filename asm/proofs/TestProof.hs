@@ -17,10 +17,24 @@ spec = FunSpec
   , funPost = \_ -> return ()
   }
 
+pre :: Spec Pre RegAssign
 pre =
   do ipFun <- freshRegs
      let valIP = ipFun IP
-     valGPReg  <- freshGPRegs (const (GPUse AsBits))
+
+     let stackSize = 3
+     stack <- allocArray infer "Stack" Mutable =<<
+              mapM (fresh QWord) (take stackSize
+                                   [ "stack_" ++ show n | n <- [ 0 .. ] ])
+
+     rsp <- ptrAdd stack =<< literal infer 2 -- stack grows down.
+
+     valGPReg <- setupGPRegs $ \r ->
+                    case r of
+                      RSP -> gpUse rsp
+                      _   -> GPFresh AsBits
+
+
      valVecReg <- freshRegs
      valFPReg  <- freshRegs
      valFlag   <- freshRegs

@@ -22,12 +22,14 @@ pre =
   do ipFun <- freshRegs
      let valIP = ipFun IP
 
-     let stackSize = 3
+     let stackSize = 4
      stack <- allocArray infer "Stack" Mutable =<<
               mapM (fresh QWord) (take stackSize
                                    [ "stack_" ++ show n | n <- [ 0 .. ] ])
 
-     rsp <- ptrAdd stack =<< literal infer 2 -- stack grows down.
+     rsp <- ptrAdd stack =<<
+              literal infer ((fromIntegral stackSize - 1) * 8)
+          -- stack grows down; one extra word at the top to return to.
 
      valGPReg <- setupGPRegs $ \r ->
                     case r of

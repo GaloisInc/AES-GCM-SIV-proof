@@ -17,20 +17,31 @@ spec = FunSpec
   , funPost = post
   }
 
+(.*) :: SizeOf t => Integer -> t -> Bytes
+n .* t = toBytes (n * bytesToInteger (sizeOf t))
+
+-- | Allocate the stack, and return the value for RSP
+setupStack :: Spec Pre (Value APtr)
+setupStack =
+  do -- (smaller) local,local,space_to_save_rbp; ret (larger)
+     stackSize <- literal (bytesToInteger (4 .* QWord))
+     stack <- allocBytes "stack" Mutable stackSize
+
+     ret  <- fresh QWord "ret"
+
+     p <- ptrAdd stack (3 .* QWord)
+     writeMem p ret
+
+     return p
+
+
+
 pre :: Spec Pre RegAssign
 pre =
   do ipFun <- freshRegs
      let valIP = ipFun IP
 
-     let stackSize = 4
-     stack <- allocArray infer "Stack" Mutable =<<
-              mapM (fresh QWord) (take stackSize
-                                   [ "stack_" ++ show n | n <- [ 0 .. ] ])
-
-     rsp <- ptrAdd stack =<<
-              literal infer ((fromIntegral stackSize - 1) * 8)
-          -- stack grows down; one extra word at the top to return to.
-
+     rsp <- setupStack
      valGPReg <- setupGPRegs $ \r ->
                     case r of
                       RSP -> gpUse rsp

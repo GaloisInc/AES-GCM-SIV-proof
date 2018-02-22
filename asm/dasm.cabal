@@ -34,6 +34,13 @@ library
   exposed-modules:
                       SAWScript.X86
                       SAWScript.X86Spec
+                      SAWScript.X86Spec.Types
+                      SAWScript.X86Spec.Registers
+                      SAWScript.X86Spec.Monad
+                      SAWScript.X86Spec.Fresh
+                      SAWScript.X86Spec.Literal
+                      SAWScript.X86Spec.SAW
+                      SAWScript.X86Spec.Memory
 
   hs-source-dirs:     src
   ghc-options:        -Wall

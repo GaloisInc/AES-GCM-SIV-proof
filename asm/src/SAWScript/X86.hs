@@ -14,7 +14,6 @@ module SAWScript.X86
 
 
 import Control.Exception(Exception(..),throwIO)
-import Control.Monad(unless)
 import Control.Monad.ST(ST,stToIO)
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
@@ -85,8 +84,10 @@ import Verifier.SAW.Term.Pretty(showTerm)
 import Verifier.SAW.Prelude(preludeModule)
 
 -- SAWScript
-import SAWScript.X86Spec
-  (Sym,FunSpec(..),runPreSpec,runPostSpec,macawLookup)
+import SAWScript.X86Spec.Types(Sym)
+import SAWScript.X86Spec.Monad(runPreSpec,runPostSpec)
+import SAWScript.X86Spec.Registers(macawLookup)
+import SAWScript.X86Spec (FunSpec(..))
 
 
 

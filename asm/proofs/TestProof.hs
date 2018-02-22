@@ -14,7 +14,7 @@ main =
 spec :: FunSpec
 spec = FunSpec
   { funPre = pre
-  , funPost = \_ -> return ()
+  , funPost = post
   }
 
 pre :: Spec Pre RegAssign
@@ -45,5 +45,10 @@ pre =
      let valX87Top = valX87TopF X87Top
      valX87Tag <- freshRegs
      return RegAssign { .. }
+
+
+post :: RegAssign -> Spec Post ()
+post r = return ()
+
 
 

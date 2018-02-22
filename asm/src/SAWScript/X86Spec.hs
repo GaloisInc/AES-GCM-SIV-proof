@@ -39,13 +39,14 @@ module SAWScript.X86Spec
   , AByte, AWord, ADWord, AQWord, AVec, APtr, ABool
   , ABits2, ABits3, ABigFloat
   , X86(..)
-  , KnownX86(..)
+  , Infer(..)
   , MemType
 
     -- * Values
   , Value
   , SAW(..)
   , Literal(..)
+  , SameVal(..)
   , ptrAdd
 
     -- * Registers
@@ -92,13 +93,13 @@ import Lang.Crucible.Solver.Symbol(SolverSymbol,userSymbol)
 import Lang.Crucible.Solver.SAWCoreBackend(SAWCoreBackend, bindSAWTerm, toSC)
 import Lang.Crucible.Solver.Interface
           (freshConstant,natLit,notPred,addAssertion,natEq,bvLit
-          , truePred, falsePred)
+          , truePred, falsePred, isEq)
 import Lang.Crucible.Solver.BoolInterface(addAssumption)
 import Lang.Crucible.LLVM.MemModel
   ( Mem, emptyMem
   , LLVMPointerType, doStore, doLoad, doMalloc, doPtrAddOffset, coerceAny)
 import Lang.Crucible.LLVM.MemModel.Pointer
-  (llvmPointer_bv, projectLLVM_bv, pattern LLVMPointer)
+  (llvmPointer_bv, projectLLVM_bv, pattern LLVMPointer, ptrEq)
 import qualified Lang.Crucible.LLVM.MemModel.Pointer as Ptr
 import Lang.Crucible.LLVM.MemModel.Type(bitvectorType)
 import Lang.Crucible.LLVM.MemModel.Generic(AllocType(HeapAlloc), Mutability(..))
@@ -151,19 +152,22 @@ data X86 :: X86Type -> Type where
 
 -- | This type may be used to specify types implicitly
 -- (i.e., in contexts where the type can be inferred automatically).
-class KnownX86 t where
+class Infer t where
   infer :: X86 t
 
-instance KnownX86 AByte     where infer = Byte
-instance KnownX86 AWord     where infer = Word
-instance KnownX86 ADWord    where infer = DWord
-instance KnownX86 AQWord    where infer = QWord
-instance KnownX86 AVec      where infer = Vec
-instance KnownX86 APtr      where infer = Ptr
-instance KnownX86 ABool     where infer = Bool
-instance KnownX86 ABits2    where infer = Bits2
-instance KnownX86 ABits3    where infer = Bits3
-instance KnownX86 ABigFloat where infer = BigFloat
+instance Infer AByte     where infer = Byte
+instance Infer AWord     where infer = Word
+instance Infer ADWord    where infer = DWord
+instance Infer AQWord    where infer = QWord
+instance Infer AVec      where infer = Vec
+instance Infer APtr      where infer = Ptr
+instance Infer ABool     where infer = Bool
+instance Infer ABits2    where infer = Bits2
+instance Infer ABits3    where infer = Bits3
+instance Infer ABigFloat where infer = BigFloat
+
+typeOf :: Infer t => value t -> X86 t
+typeOf _ = infer
 
 
 -- | Mapping from X86 types to the Crucible types used to implement them.
@@ -272,7 +276,33 @@ symName s = case userSymbol s of
               Left err -> fail (show err)
               Right a  -> return a
 
+class SameVal t where
+  sameVal :: t -> t -> Spec p (Value ABool)
 
+instance Infer t => SameVal (Value t) where
+  sameVal a@(Value x) (Value y) =
+    withSym $ \sym ->
+      Value <$> (
+      let t = typeOf a
+          w = bitSizeNat t
+      in case t of
+           Byte      -> ptrEq sym w x y
+           Word      -> ptrEq sym w x y
+           DWord     -> ptrEq sym w x y
+           QWord     -> ptrEq sym w x y
+           Vec       -> ptrEq sym w x y
+           Ptr       -> ptrEq sym w x y
+           Bits2     -> ptrEq sym w x y
+           Bits3     -> ptrEq sym w x y
+           BigFloat  -> ptrEq sym w x y
+           Bool      -> isEq sym x y)
+
+instance SameVal GPRegVal where
+  sameVal x y =
+    case (x,y) of
+      (GPBits a, GPBits b) -> sameVal a b
+      (GPPtr a, GPPtr b)   -> sameVal a b
+      _                    -> withSym $ \sym -> return (Value (falsePred sym))
 
 --------------------------------------------------------------------------------
 -- Spec monad
@@ -467,7 +497,7 @@ freshGP x u =
 -- | Generate fresh values for a class of registers.
 freshRegs ::
   forall a.
-  (Show a, Enum a, Bounded a, GetReg a, KnownX86 (RegType a)) =>
+  (Show a, Enum a, Bounded a, GetReg a, Infer (RegType a)) =>
   Spec Pre (a -> Value (RegType a))
 freshRegs =
   do vs <- Vector.fromList <$>
@@ -475,21 +505,18 @@ freshRegs =
      return (\x -> vs Vector.! fromEnum x)
 
 -- The input should be a boolean SAW Core term.
-assume :: Term {- ^ Boolean assumption -} -> Spec Pre ()
-assume p =
+assume :: Value ABool {- ^ Boolean assumption -} -> Spec Pre ()
+assume (Value p) =
   do sym <- getSym
-     io $ do v <- bindSAWTerm sym BaseBoolRepr p
-             addAssumption sym v
+     io $ addAssumption sym p
 
 -- | Add an assertion to the post-condition.
 assert ::
-  Term    {- ^ Boolean assertion, should be true -} ->
-  String  {- ^ A message to show if the assrtion failes -} ->
+  Value ABool {- ^ Boolean assertion, should be true -} ->
+  String     {- ^ A message to show if the assrtion fails -} ->
   Spec Post ()
-assert p msg =
-  withSym $ \sym ->
-  do ok <- bindSAWTerm sym BaseBoolRepr p
-     addAssertion sym ok (AssertFailureSimError msg)
+assert (Value p) msg =
+  withSym $ \sym -> addAssertion sym p (AssertFailureSimError msg)
 
 --------------------------------------------------------------------------------
 -- SAW terms

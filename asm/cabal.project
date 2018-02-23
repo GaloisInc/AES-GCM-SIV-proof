@@ -15,4 +15,7 @@ packages:
   deps/llvm-pretty
   deps/saw-core
   deps/saw-core-aig
+  deps/saw-core-sbv
   deps/abcBridge
+  deps/cryptol-verifier
+  deps/cryptol

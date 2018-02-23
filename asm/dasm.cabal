@@ -29,7 +29,8 @@ library
                       crucible-llvm,
                       crucible-saw,
                       saw-core,
-                      parameterized-utils
+                      parameterized-utils,
+                      cryptol-verifier
 
   exposed-modules:
                       SAWScript.X86

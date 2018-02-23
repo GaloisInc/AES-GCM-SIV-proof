@@ -87,7 +87,7 @@ import Verifier.SAW.Prelude(preludeModule)
 import SAWScript.X86Spec.Types(Sym)
 import SAWScript.X86Spec.Monad(runPreSpec,runPostSpec)
 import SAWScript.X86Spec.Registers(macawLookup)
-import SAWScript.X86Spec (FunSpec(..))
+import SAWScript.X86Spec (FunSpec)
 
 
 
@@ -235,14 +235,12 @@ translate opts elf fun =
 
      mvar <- stToIO (mkMemVar halloc)
      let sym  = backend opts
-         fspec = funSpec fun
-     (initRegs, m1) <- runPreSpec sym (funPre fspec)
+     ((initRegs,post), m1) <- runPreSpec sym (funSpec fun)
      regs <- macawAssignToCrucM (return . macawLookup initRegs) genRegAssign
      execResult <-
         runCodeBlock sym x86 (x86_eval opts) halloc (mvar,m1) cfg regs
 
 
-     let postSpec = funPost fspec initRegs
      gp <- case execResult of
              FinishedExecution _ res ->
                 case res of
@@ -255,7 +253,7 @@ translate opts elf fun =
                                    , ppAbort res ]
 
      mem <- getMem gp mvar
-     runPostSpec sym (regValue (gp ^. gpValue)) mem postSpec
+     runPostSpec sym (regValue (gp ^. gpValue)) mem post
 
      getGoals sym
 

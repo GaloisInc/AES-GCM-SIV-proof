@@ -12,7 +12,7 @@
 {-# Language RecordWildCards #-}
 module SAWScript.X86Spec
   ( -- * Specifications
-    FunSpec(..)
+    FunSpec
   , Spec
 
     -- ** Pre conditions
@@ -51,7 +51,10 @@ module SAWScript.X86Spec
   , SAW(..)
   , Literal(..), literal
   , SameVal(..)
+  , expectSame
+  , preserveGP
   , ptrAdd
+  , (.*)
 
     -- * Registers
   , IP(..)
@@ -66,12 +69,17 @@ module SAWScript.X86Spec
 
   , RegAssign(..), GPRegVal(..)
 
+    -- * Misc
+  , debug
+  , ppVal
+
   ) where
 
 import qualified Data.Vector as Vector
 
-import Lang.Crucible.Solver.Interface (falsePred, isEq)
+import Lang.Crucible.Solver.Interface (falsePred, isEq, printSymExpr)
 import Lang.Crucible.LLVM.MemModel.Pointer (ptrEq)
+import Lang.Crucible.LLVM.MemModel.Generic(ppPtr)
 
 
 import SAWScript.X86Spec.Types
@@ -83,6 +91,46 @@ import SAWScript.X86Spec.Literal
 import SAWScript.X86Spec.Memory
 
 
+
+debug :: String -> Spec p ()
+debug x = io (putStrLn x)
+
+ppValAt :: X86 t -> Value t -> String
+ppValAt ty (Value v) =
+  case ty of
+    Byte      -> show (ppPtr v)
+    Word      -> show (ppPtr v)
+    DWord     -> show (ppPtr v)
+    QWord     -> show (ppPtr v)
+    Vec       -> show (ppPtr v)
+    Ptr       -> show (ppPtr v)
+    Bits2     -> show (ppPtr v)
+    Bits3     -> show (ppPtr v)
+    BigFloat  -> show (ppPtr v)
+    Bool      -> show (printSymExpr v)
+
+ppVal :: Infer t => Value t -> String
+ppVal = ppValAt infer
+
+-- | Assert that two values are the same.
+expectSame :: (Infer t) =>
+  String {- ^ A label to use if the assertion fails" -} ->
+  Value t -> Value t -> Spec Post ()
+expectSame s x y =
+  do ok <- sameVal x y
+     assert ok $ unlines [ s ++ " values are not the same:"
+                         , "*** Expected: " ++ ppVal x
+                         , "*** Actual  : " ++ ppVal y
+                         ]
+
+-- | Assert that a given general purpose register is preserved.
+preserveGP :: RegAssign {- ^ Initial register assginment -} ->
+              GPReg     {- ^ Register to preserve -} ->
+              Spec Post ()
+preserveGP r g =
+  case valGPReg r g of
+    GPBits oldV -> expectSame (show g) oldV =<< getReg (g,AsBits)
+    GPPtr  oldV -> expectSame (show g) oldV =<< getReg (g,AsPtr)
 
 
 
@@ -118,16 +166,12 @@ instance SameVal GPRegVal where
       _                    -> withSym $ \sym -> return (Value (falsePred sym))
 
 
--- | A specifiction for a functino.
-data FunSpec = FunSpec
-  { funPre  :: Spec Pre RegAssign
-    -- ^ Setup memory, and compute register assignment.
-    -- Assumptions about the initial values can be added using "assume"
-
-  , funPost :: RegAssign -> Spec Post ()
-    -- ^ Compute a post-condition for the function.
-    -- The post condition is specified by uses of "assert".
-  }
+{- | A specifiction for a function.
+The outer, "Pre" computiation sets up the initial state of the
+computation (i.e., the pre-condition for the function).
+As a result, we return the inital register assignemtn,
+and the post-condition for the function). -}
+type FunSpec = Spec Pre (RegAssign, Spec Post ())
 
 
 -- | Generate fresh values for all general purpose registers.

@@ -31,6 +31,7 @@ import Lang.Crucible.Solver.Interface
   (natLit,notPred,addAssertion,addAssumption, natEq)
 import Lang.Crucible.LLVM.MemModel ( Mem, emptyMem, LLVMPointerType)
 import Lang.Crucible.LLVM.MemModel.Pointer( pattern LLVMPointer )
+import Lang.Crucible.LLVM.MemModel.Generic(ppPtr)
 
 import Data.Macaw.Symbolic.CrucGen(MacawCrucibleRegTypes)
 import Data.Macaw.X86.ArchTypes(X86_64)
@@ -119,7 +120,7 @@ isPtr :: (Rep t ~ LLVMPointerType 64, InPre p) =>
          Value t ->
          Bool ->
          Spec p ()
-isPtr (Value (LLVMPointer base _)) yes =
+isPtr (Value pt@(LLVMPointer base _off)) yes =
   do sym <- getSym
      ok <- io $ do isBits <- natEq sym base =<< natLit sym 0
                    if yes then notPred sym isBits else return isBits
@@ -129,9 +130,10 @@ isPtr (Value (LLVMPointer base _)) yes =
              then addAssumption sym ok
              else addAssertion sym ok (AssertFailureSimError msg)
   where
-  msg | yes       = "Expected a pointer, but encounterd a bit value."
-      | otherwise = "Expected a bit value, but encounterd a pointer."
+  msg' | yes       = "Expected a pointer, but encounterd a bit value."
+       | otherwise = "Expected a bit value, but encounterd a pointer."
 
+  msg = unlines [ msg', show (ppPtr pt) ]
 
 -- The input should be a boolean SAW Core term.
 assume :: Value ABool {- ^ Boolean assumption -} -> Spec Pre ()

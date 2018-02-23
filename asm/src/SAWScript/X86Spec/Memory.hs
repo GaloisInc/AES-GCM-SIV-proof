@@ -15,6 +15,7 @@ module SAWScript.X86Spec.Memory
   , toBytes
   , bytesToInteger
   , Mutability(..)
+  , (.*)
   ) where
 
 import GHC.TypeLits(Nat)
@@ -73,6 +74,10 @@ instance MemType t => SizeOf (X86 t) where
 instance (MemType t, Infer t) => SizeOf (Value t) where
   sizeOf = sizeOf . typeOf
 
+-- | Multiply a size by a constant.
+-- Useful for working with arrays (sizes, advnacing, etc.)
+(.*) :: SizeOf t => Integer -> t -> Bytes
+n .* t = toBytes (n * bytesToInteger (sizeOf t))
 
 -- | The LLVM type used when manipulating values of the given type in memory.
 llvmType :: SizeOf t => t -> LLVM.Type
@@ -110,15 +115,23 @@ readMem w (Value p) =
        Value <$> coerceAny sym (crucRepr w) anyV
 
 
+
 -- | Allocate a pointer that points to the given number of bytes (on the heap).
 -- The allocated memory is not initialized, so it should not be read until
 -- it has been initialized.
-allocBytes :: String -> Mutability -> Value AQWord -> Spec Pre (Value APtr)
-allocBytes str mut (Value n) =
-  let ?ptrWidth = knownNat in
-  updMem $ \sym m ->
-    do (v,mem1) <- doMalloc sym HeapAlloc mut str m =<< projectLLVM_bv sym n
-       return (Value v, mem1)
+class AllocBytes t where
+  allocBytes :: String -> Mutability -> t -> Spec Pre (Value APtr)
+
+instance (t ~ AQWord) => AllocBytes (Value t) where
+  allocBytes str mut (Value n) =
+    let ?ptrWidth = knownNat in
+    updMem $ \sym m ->
+      do (v,mem1) <- doMalloc sym HeapAlloc mut str m =<< projectLLVM_bv sym n
+         return (Value v, mem1)
+
+instance AllocBytes Bytes where
+  allocBytes str mut b = allocBytes str mut =<< literal (bytesToInteger b)
+
 
 class PtrAdd t where
   ptrAdd :: Value APtr -> t -> Spec p (Value APtr)

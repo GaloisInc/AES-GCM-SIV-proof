@@ -292,14 +292,15 @@ instance GetReg IP where
 instance GetReg (GPReg,GPRegUse t) where
   getReg (x,use) =
     case x of
+      -- Flexdi86.Register for the mapping between registers.
       RAX -> regValueGP @(M.GP  0) use
-      RBX -> regValueGP @(M.GP  1) use
-      RCX -> regValueGP @(M.GP  2) use
-      RDX -> regValueGP @(M.GP  3) use
-      RSI -> regValueGP @(M.GP  4) use
-      RDI -> regValueGP @(M.GP  5) use
-      RSP -> regValueGP @(M.GP  6) use
-      RBP -> regValueGP @(M.GP  7) use
+      RBX -> regValueGP @(M.GP  3) use
+      RCX -> regValueGP @(M.GP  1) use
+      RDX -> regValueGP @(M.GP  2) use
+      RSI -> regValueGP @(M.GP  6) use
+      RDI -> regValueGP @(M.GP  7) use
+      RSP -> regValueGP @(M.GP  4) use
+      RBP -> regValueGP @(M.GP  5) use
       R8  -> regValueGP @(M.GP  8) use
       R9  -> regValueGP @(M.GP  9) use
       R10 -> regValueGP @(M.GP 10) use

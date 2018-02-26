@@ -353,7 +353,7 @@ instance Show Goal where
                 . showList (map (show . showTerm) (gAssumes g))
                 . showString ", gShows = " . shows (showTerm (gShows g))
                 . showString ", gLoc = " . shows (gLoc g)
-                . showString ", gMessage = " . shows (gMessage g)
+                . showString ", gMessage = " . shows (show (gMessage g))
                 . showString " }"
 
 

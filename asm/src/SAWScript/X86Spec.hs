@@ -48,7 +48,7 @@ module SAWScript.X86Spec
 
     -- * Values
   , Value
-  , SAW(..)
+  , SAW(..), showTerm
   , Literal(..), literal
   , SameVal(..)
   , expectSame
@@ -84,6 +84,7 @@ import Lang.Crucible.Solver.Interface (falsePred, isEq, printSymExpr)
 import Lang.Crucible.LLVM.MemModel.Pointer (ptrEq)
 import Lang.Crucible.LLVM.MemModel.Generic(ppPtr)
 
+import Verifier.SAW.Term.Pretty(showTerm)
 
 import SAWScript.X86Spec.Types
 import SAWScript.X86Spec.Registers

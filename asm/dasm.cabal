@@ -30,7 +30,8 @@ library
                       crucible-saw,
                       saw-core,
                       parameterized-utils,
-                      cryptol-verifier
+                      cryptol-verifier,
+                      cryptol
 
   exposed-modules:
                       SAWScript.X86

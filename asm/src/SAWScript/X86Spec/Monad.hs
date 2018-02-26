@@ -18,9 +18,15 @@ module SAWScript.X86Spec.Monad
   , isPtr
   , assume
   , assert
+  , getSharedContext
+  , withSharedContext
+  , cryTerm
+  , PreExtra(..)
   ) where
 
 import Control.Monad(liftM,ap)
+import           Data.Map ( Map )
+import qualified Data.Map as Map
 
 import Data.Parameterized.Context(Assignment)
 
@@ -29,12 +35,21 @@ import Lang.Crucible.Simulator.RegValue(RegValue,RegValue')
 import Lang.Crucible.Simulator.SimError(SimErrorReason(..))
 import Lang.Crucible.Solver.Interface
   (natLit,notPred,addAssertion,addAssumption, natEq)
+import Lang.Crucible.Solver.SAWCoreBackend(sawBackendSharedContext)
 import Lang.Crucible.LLVM.MemModel ( Mem, emptyMem, LLVMPointerType)
 import Lang.Crucible.LLVM.MemModel.Pointer( pattern LLVMPointer )
 import Lang.Crucible.LLVM.MemModel.Generic(ppPtr)
 
+import Verifier.SAW.SharedTerm(Term,SharedContext)
+
+import Verifier.SAW.CryptolEnv(initCryptolEnv,loadCryptolModule,CryptolEnv(..))
+
+import Cryptol.ModuleSystem.Name(nameIdent)
+import Cryptol.Utils.Ident(unpackIdent)
+
 import Data.Macaw.Symbolic.CrucGen(MacawCrucibleRegTypes)
 import Data.Macaw.X86.ArchTypes(X86_64)
+
 
 import SAWScript.X86Spec.Types
 
@@ -50,20 +65,47 @@ type Post = 'Post
 
 -- | A monad for definingin specifications.
 newtype Spec (p :: SpecType) a =
-  Spec (Sym -> RR p -> RegValue Sym Mem -> IO (a, RegValue Sym Mem))
+  Spec ((Sym, Map String Term) ->
+        RR p ->
+        RegValue Sym Mem -> IO (a, RegValue Sym Mem))
+
+-- | Interanl state to be passed from the pre-spec to the post-spec
+data PreExtra = PreExtra { theMem :: RegValue Sym Mem
+                         , cryTerms :: Map String Term
+                         }
 
 -- | Execute a pre-condition specification.
-runPreSpec :: Sym -> Spec Pre a -> IO (a, RegValue Sym Mem)
-runPreSpec sym (Spec f) = f sym () =<< emptyMem LittleEndian
+runPreSpec ::
+  Sym ->
+  Maybe FilePath {- ^ Optional file, containing Cryptol declarations -} ->
+  Spec Pre a -> IO (a, PreExtra)
+runPreSpec sym mb (Spec f) =
+  do cs <- loadCry sym mb
+     (a,m) <- f (sym,cs) () =<< emptyMem LittleEndian
+     return (a, PreExtra { theMem = m, cryTerms = cs })
+
+-- | Load a file with Cryptol decls.
+loadCry :: Sym -> Maybe FilePath -> IO (Map String Term)
+loadCry sym mb =
+  case mb of
+    Nothing -> return Map.empty
+    Just file ->
+      do ctx <- sawBackendSharedContext sym
+         env <- initCryptolEnv ctx
+         (_,env1) <- loadCryptolModule ctx env file
+         let nameText = unpackIdent . nameIdent
+         let cvt (x,v) = (nameText x, v)
+         return (Map.fromList $ map cvt $ Map.toList $ eTermEnv env1)
 
 -- | Execute a post-condition specification.
 runPostSpec ::
   Sym ->
+  Map String Term ->
   Assignment (RegValue' Sym) (MacawCrucibleRegTypes X86_64) ->
   RegValue Sym Mem ->
   Spec Post () ->
   IO ()
-runPostSpec sym rs mem (Spec f) = fst <$> f sym rs  mem
+runPostSpec sym cry rs mem (Spec f) = fst <$> f (sym, cry) rs mem
 
 type family RR (x :: SpecType) where
   RR Pre = ()
@@ -85,22 +127,36 @@ io m = Spec (\_ _ s -> do a <- m
                           return (a,s))
 
 getSym :: Spec p Sym
-getSym = Spec (\r _ s -> return (r,s))
+getSym = Spec (\(r,_) _ s -> return (r,s))
 
 withSym :: (Sym -> IO a) -> Spec p a
 withSym f =
   do s <- getSym
      io (f s)
 
+getSharedContext :: Spec p SharedContext
+getSharedContext = withSym sawBackendSharedContext
+
+withSharedContext :: (SharedContext -> IO a) -> Spec p a
+withSharedContext f =
+  do s <- getSharedContext
+     io (f s)
+
+cryTerm :: String -> Spec p Term
+cryTerm x = Spec (\(_,cs) _ s ->
+  case Map.lookup x cs of
+    Nothing -> fail ("Missing Cryptol term: " ++ show x)
+    Just t   -> return (t,s))
+
 updMem :: (Sym -> RegValue Sym Mem -> IO (a, RegValue Sym Mem)) -> Spec Pre a
-updMem f = Spec (\r _ s -> f r s)
+updMem f = Spec (\r _ s -> f (fst r) s)
 
 updMem_ :: (Sym -> RegValue Sym Mem -> IO (RegValue Sym Mem)) -> Spec Pre ()
 updMem_ f = updMem (\sym mem -> do mem1 <- f sym mem
                                    return ((),mem1))
 
 withMem :: (Sym -> RegValue Sym Mem -> IO a) -> Spec p a
-withMem f = Spec (\r _ s -> f r s >>= \a -> return (a,s))
+withMem f = Spec (\r _ s -> f (fst r) s >>= \a -> return (a,s))
 
 getRegs :: Spec Post (Assignment (RegValue' Sym) (MacawCrucibleRegTypes X86_64))
 getRegs = Spec (\_ r s -> return (r,s))

@@ -7,7 +7,11 @@ import Control.Exception(catch)
 
 main :: IO ()
 main =
-  do gs <- proof linuxInfo "test/a.out" Fun { funName = "f", funSpec = spec }
+  do gs <- proof linuxInfo "test/a.out"
+            Fun { funName = "f"
+                , funSpec = FunSpec { spec     = pre
+                                    , cryDecls = Just "test/spec.cry" }
+                }
      print gs
   `catch` \(X86Error e) -> putStrLn e
 
@@ -26,8 +30,8 @@ setupStack =
      return (p, ret)
 
 
-spec :: Spec Pre (RegAssign, Spec Post ())
-spec =
+pre :: Spec Pre (RegAssign, Spec Post ())
+pre =
   do ipFun <- freshRegs
      let valIP = ipFun IP
 
@@ -58,6 +62,8 @@ spec =
               expectSame "RSP" expectRSP =<< getReg (RSP,AsPtr)
 
               expectSame "IP" ret =<< getReg IP
+
+     t <- cryTerm "x"
 
      return (r,post)
 

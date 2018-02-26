@@ -17,11 +17,13 @@ import Control.Exception(Exception(..),throwIO)
 import Control.Monad.ST(ST,stToIO)
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BSC
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import           Data.Text.Encoding(decodeUtf8)
 import           Data.Foldable(toList)
 import           Control.Lens((^.))
+import           System.IO(hFlush,stdout)
 
 import Data.ElfEdit (Elf, parseElf, ElfGetResult(..))
 
@@ -81,13 +83,15 @@ import Data.Macaw.X86.Crucible(SymFuns)
 -- Saw Core
 import Verifier.SAW.SharedTerm(Term, mkSharedContext)
 import Verifier.SAW.Term.Pretty(showTerm)
-import Verifier.SAW.Prelude(preludeModule)
+
+-- Cryptol Verifier
+import Verifier.SAW.Cryptol.Prelude(cryptolModule)
 
 -- SAWScript
 import SAWScript.X86Spec.Types(Sym)
-import SAWScript.X86Spec.Monad(runPreSpec,runPostSpec)
+import SAWScript.X86Spec.Monad(runPreSpec,runPostSpec,PreExtra(..))
 import SAWScript.X86Spec.Registers(macawLookup)
-import SAWScript.X86Spec (FunSpec)
+import SAWScript.X86Spec (FunSpec(..))
 
 
 
@@ -138,7 +142,7 @@ data Fun = Fun { funName :: ByteString, funSpec :: FunSpec }
 proof :: ArchitectureInfo X86_64 -> FilePath -> Fun -> IO [Goal]
 proof archi file fun =
   do cfg <- initialConfig 0 []
-     sc  <- mkSharedContext preludeModule
+     sc  <- mkSharedContext cryptolModule
      sym <- newSAWCoreBackend sc globalNonceGenerator cfg
      sfs <- newSymFuns sym
      proofWithOptions Options
@@ -230,15 +234,27 @@ posFn = OtherPos . Text.pack . show
 translate :: Options -> RelevantElf -> Fun -> IO [Goal]
 translate opts elf fun =
   do let name = funName fun
+     sayLn ("Translating function: " ++ BSC.unpack name)
+
+     say "  Looking for address... "
      addr <- findSymbol (symMap elf) name
-     (halloc, SomeCFG cfg) <- stToIO (makeCFG opts elf name addr)
+     sayLn (show addr)
+
+     (halloc, SomeCFG cfg) <- statusBlock "  Constructing CFG... "
+                            $ stToIO (makeCFG opts elf name addr)
 
      mvar <- stToIO (mkMemVar halloc)
-     let sym  = backend opts
-     ((initRegs,post), m1) <- runPreSpec sym (funSpec fun)
+     let sym   = backend opts
+         fspec = funSpec fun
+
+     ((initRegs,post), extra) <-
+        statusBlock "  Setting up pre-conditions... " $
+          runPreSpec sym (cryDecls fspec) (spec fspec)
+
      regs <- macawAssignToCrucM (return . macawLookup initRegs) genRegAssign
      execResult <-
-        runCodeBlock sym x86 (x86_eval opts) halloc (mvar,m1) cfg regs
+        statusBlock "  Simulating... " $
+        runCodeBlock sym x86 (x86_eval opts) halloc (mvar,theMem extra) cfg regs
 
 
      gp <- case execResult of
@@ -253,7 +269,9 @@ translate opts elf fun =
                                    , ppAbort res ]
 
      mem <- getMem gp mvar
-     runPostSpec sym (regValue (gp ^. gpValue)) mem post
+
+     statusBlock "  Setting-up post-conditions... " $
+       runPostSpec sym (cryTerms extra) (regValue (gp ^. gpValue)) mem post
 
      getGoals sym
 
@@ -390,4 +408,25 @@ unsupported x = throwIO (X86Unsupported x)
 
 malformed :: String -> IO a
 malformed x = throwIO (X86Error x)
+
+
+--------------------------------------------------------------------------------
+-- Status output
+
+
+say :: String -> IO ()
+say x = putStr x >> hFlush stdout
+
+sayLn :: String -> IO ()
+sayLn = putStrLn
+
+sayOK :: IO ()
+sayOK = sayLn "[OK]"
+
+statusBlock :: String -> IO a -> IO a
+statusBlock msg m =
+  do say msg
+     a <- m
+     sayOK
+     return a
 

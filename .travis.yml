@@ -18,11 +18,6 @@ env:
   - SAWPROOF=ref-128
   - SAWPROOF=ref-256
 
-
-matrix:
-  allow_failures:
-    - env: SAWPROOF=ref-256
-
 install:
   - . .travis/install_saw.sh
 

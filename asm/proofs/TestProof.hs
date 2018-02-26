@@ -12,9 +12,18 @@ main =
                 , funSpec = FunSpec { spec     = pre
                                     , cryDecls = Just "test/spec.cry" }
                 }
-     print gs
+     mapM_ ppGG gs
   `catch` \(X86Error e) -> putStrLn e
 
+
+ppGG :: Goal -> IO ()
+ppGG g =
+  do putStrLn "-------------"
+     putStrLn "Assuming:"
+     mapM_ (putStrLn . showTerm) (gAssumes g)
+     putStrLn "Shows:"
+     putStrLn (showTerm (gShows g))
+     putStrLn "---------------"
 
 
 -- | Allocate the stack, and return the value for RSP, the return address.
@@ -63,7 +72,12 @@ pre =
 
               expectSame "IP" ret =<< getReg IP
 
-     t <- cryTerm "x"
+              t <- saw QWord =<< cryTerm "x"    -- XXX: unchecked
+              r <- getReg (RAX,AsBits)
+              ok <- sameVal r t
+              assert ok "Not ok"
+
+
 
      return (r,post)
 

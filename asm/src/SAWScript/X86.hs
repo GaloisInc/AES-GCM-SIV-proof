@@ -8,8 +8,10 @@ module SAWScript.X86
   , bsdInfo
   , Fun(..)
   , Goal(..)
+  , gGoal
   , X86Error(..)
   , X86Unsupported(..)
+  , SharedContext
   ) where
 
 
@@ -82,7 +84,7 @@ import Data.Macaw.X86.Crucible(SymFuns)
 
 
 -- Saw Core
-import Verifier.SAW.SharedTerm(Term, mkSharedContext, SharedContext)
+import Verifier.SAW.SharedTerm(Term, mkSharedContext, SharedContext, scImplies)
 import Verifier.SAW.Term.Pretty(showTerm)
 
 -- Cryptol Verifier
@@ -336,6 +338,14 @@ data Goal = Goal
   , gLoc     :: ProgramLoc            -- ^ The goal came from here
   , gMessage :: Maybe SimErrorReason  -- ^ We should say this if the proof fails
   }
+
+-- | The boolean term that needs proving (i.e., assumptions imply conclusion)
+gGoal :: SharedContext -> Goal -> IO Term
+gGoal ctx g = go (gAssumes g)
+  where
+  go xs = case xs of
+            []     -> return (gShows g)
+            a : as -> scImplies ctx a =<< go as
 
 getGoals :: Sym -> IO [Goal]
 getGoals sym =

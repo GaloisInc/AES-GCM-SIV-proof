@@ -1,4 +1,8 @@
-module SAWScript.Prover.SBV (satUnintSBV) where
+module SAWScript.Prover.SBV
+  ( satUnintSBV
+  , SBV.SMTConfig
+  , SBV.z3, SBV.cvc4, SBV.yices, SBV.mathSAT, SBV.boolector
+  ) where
 
 import           Data.Map ( Map )
 import qualified Data.Map as Map
@@ -17,7 +21,7 @@ import Verifier.SAW.Recognizer(asPi, asPiList)
 import Verifier.SAW.Cryptol.Prims (sbvPrims)
 
 
-import SAWScript.Prover.Goal(Quantification(..),ProofGoal(..))
+import SAWScript.Prover.Mode(ProverMode(..))
 import SAWScript.Prover.SolverStats
 import SAWScript.Prover.Rewrite(rewriteEqs)
 import SAWScript.Prover.Util(checkBooleanSchema)
@@ -31,16 +35,16 @@ satUnintSBV ::
   SBV.SMTConfig {- ^ SBV configuration -} ->
   SharedContext {- ^ Context for working with terms -} ->
   [String]      {- ^ Uninterpreted functions -} ->
-  ProofGoal     {- ^ Prove/check this -} ->
+  ProverMode    {- ^ Prove/check -} ->
+  Term          {- ^ A boolean term to be proved/checked. -} ->
   IO (Maybe [(String,FirstOrderValue)], SolverStats)
-    -- ^ (example/counter-example, how long it took us to do the proof)
-satUnintSBV conf sc unints g =
-  do (t', labels, lit0) <- prepSBV sc unints (goalTerm g)
-     let quant = goalQuant g
+    -- ^ (example/counter-example, solver statistics)
+satUnintSBV conf sc unints mode term =
+  do (t', labels, lit0) <- prepSBV sc unints term
 
-     let lit = case quant of
-           Existential -> lit0
-           Universal   -> liftM SBV.svNot lit0
+     let lit = case mode of
+                 CheckSat -> lit0
+                 Prove    -> liftM SBV.svNot lit0
 
      tp <- scWhnf sc =<< scTypeOf sc t'
      let (args, _) = asPiList tp

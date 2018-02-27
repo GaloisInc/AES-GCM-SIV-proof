@@ -1,15 +1,15 @@
 {-# Language OverloadedStrings, RecordWildCards, GADTs #-}
 module Main where
 
+import Control.Exception(catch)
+import System.IO(hFlush,stdout)
+
 import SAWScript.X86
 import SAWScript.X86Spec
-import Control.Exception(catch)
 
-import SAWScript.Prover.SBV(satUnintSBV)
-import qualified SAWScript.Prover.Goal as PG
-import qualified Data.SBV as SBV
-
-import Verifier.SAW.SharedTerm
+import SAWScript.Prover.Mode(ProverMode(Prove))
+import SAWScript.Prover.SBV(satUnintSBV,z3)
+import SAWScript.Prover.SolverStats
 
 main :: IO ()
 main =
@@ -21,20 +21,29 @@ main =
      mapM_ (solveGoal ctx) gs
   `catch` \(X86Error e) -> putStrLn e
 
-toGoal :: Goal -> PG.ProofGoal
-toGoal g = PG.ProofGoal
-  { PG.goalQuant = PG.Universal
-  , PG.goalNum   = 0
-  , PG.goalType  = ""
-  , PG.goalName  = ""
-  , PG.goalTerm  = gShows g
-  }
+
 
 solveGoal :: SharedContext -> Goal -> IO ()
 solveGoal ctx g =
-  do (mb, stats) <- satUnintSBV SBV.z3 ctx [] (toGoal g)
-     print stats
-     print mb
+  do term <- gGoal ctx g
+     putStrLn "Proving goal"
+     putStrLn ("  Source: " ++ show (gLoc g))
+     putStrLn ("  Reason: " ++ ppReason (gMessage g))
+     putStr "  Working... "
+     hFlush stdout
+     (mb, stats) <- satUnintSBV z3 ctx [] Prove term
+     putStrLn (ppStats stats)
+     case mb of
+       Nothing -> putStrLn "  Success!"
+       Just a  -> do putStrLn "  Proof failed, counter-example:"
+                     let pp (x,y) = putStrLn ("    " ++ x ++ " = " ++ show y)
+                     mapM_ pp a
+
+ppReason :: Show a => Maybe a -> String
+ppReason x =
+  case x of
+    Nothing -> "(unknown)"
+    Just a  -> show a
 
 
 ppGG :: Goal -> IO ()

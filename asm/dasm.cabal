@@ -47,7 +47,7 @@ library
                       SAWScript.X86Spec.Memory
 
                       SAWScript.Prover.SBV
-                      SAWScript.Prover.Goal
+                      SAWScript.Prover.Mode
                       SAWScript.Prover.Rewrite
                       SAWScript.Prover.SolverStats
                       SAWScript.Prover.Util
@@ -61,7 +61,7 @@ executable test-proof
   main-is:             TestProof.hs
   hs-source-dirs:      proofs
   build-depends:       base >=4.10 && <4.11,
-                       dasm, sbv, saw-core
+                       dasm
   ghc-options:         -Wall
   default-language:    Haskell2010
 

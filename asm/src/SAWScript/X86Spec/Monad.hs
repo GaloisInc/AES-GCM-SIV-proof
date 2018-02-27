@@ -40,7 +40,7 @@ import Lang.Crucible.LLVM.MemModel ( Mem, emptyMem, LLVMPointerType)
 import Lang.Crucible.LLVM.MemModel.Pointer( pattern LLVMPointer )
 import Lang.Crucible.LLVM.MemModel.Generic(ppPtr)
 
-import Verifier.SAW.SharedTerm(Term,SharedContext)
+import Verifier.SAW.SharedTerm(Term,SharedContext,scApplyAll)
 
 import Verifier.SAW.CryptolEnv(initCryptolEnv,loadCryptolModule,CryptolEnv(..))
 
@@ -142,11 +142,15 @@ withSharedContext f =
   do s <- getSharedContext
      io (f s)
 
-cryTerm :: String -> Spec p Term
-cryTerm x = Spec (\(_,cs) _ s ->
+-- | Lookup a cryptol term, and apply it to the given arguments,
+-- returning the result.
+cryTerm :: String -> [Term] -> Spec p Term
+cryTerm x xs = Spec (\(sym,cs) _ s ->
   case Map.lookup x cs of
     Nothing -> fail ("Missing Cryptol term: " ++ show x)
-    Just t   -> return (t,s))
+    Just t  -> do sc <- sawBackendSharedContext sym
+                  t1 <- scApplyAll sc t xs
+                  return (t1,s))
 
 updMem :: (Sym -> RegValue Sym Mem -> IO (a, RegValue Sym Mem)) -> Spec Pre a
 updMem f = Spec (\r _ s -> f (fst r) s)

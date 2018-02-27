@@ -72,11 +72,16 @@ pre =
 
               expectSame "IP" ret =<< getReg IP
 
-              t <- saw QWord =<< cryTerm "x"    -- XXX: unchecked
-              r <- getReg (RAX,AsBits)
-              ok <- sameVal r t
-              assert ok "Not ok"
+              -- Arguments and results.
+              let GPBits arg1 = valGPReg RDI
+                  GPBits arg2 = valGPReg RSI
+              res <- getReg (RAX,AsBits)
+              a1 <- toSAW arg1
+              a2 <- toSAW arg2
+              re <- toSAW res
 
+              ok <- saw Bool =<< cryTerm "post" [a1,a2,re]
+              assert ok "Post condition not satisified."
 
 
      return (r,post)

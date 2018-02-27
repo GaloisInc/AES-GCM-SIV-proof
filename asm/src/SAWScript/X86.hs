@@ -54,7 +54,8 @@ import Lang.Crucible.FunctionName(functionNameFromText)
 import Lang.Crucible.LLVM.MemModel (Mem,mkMemVar)
 
 -- Crucible SAW
-import Lang.Crucible.Solver.SAWCoreBackend(newSAWCoreBackend, proofObligs, toSC)
+import Lang.Crucible.Solver.SAWCoreBackend
+  (newSAWCoreBackend, proofObligs, toSC, sawBackendSharedContext)
 
 
 -- Macaw
@@ -81,7 +82,7 @@ import Data.Macaw.X86.Crucible(SymFuns)
 
 
 -- Saw Core
-import Verifier.SAW.SharedTerm(Term, mkSharedContext)
+import Verifier.SAW.SharedTerm(Term, mkSharedContext, SharedContext)
 import Verifier.SAW.Term.Pretty(showTerm)
 
 -- Cryptol Verifier
@@ -139,7 +140,7 @@ data Fun = Fun { funName :: ByteString, funSpec :: FunSpec }
 
 -- | Run a top-level proof.
 -- Should be used when making a standalone proof script.
-proof :: ArchitectureInfo X86_64 -> FilePath -> Fun -> IO [Goal]
+proof :: ArchitectureInfo X86_64 -> FilePath -> Fun -> IO (SharedContext,[Goal])
 proof archi file fun =
   do cfg <- initialConfig 0 []
      sc  <- mkSharedContext cryptolModule
@@ -155,7 +156,7 @@ proof archi file fun =
 
 -- | Run a proof using the given backend.
 -- Useful for integrating with other tool.
-proofWithOptions :: Options -> IO [Goal]
+proofWithOptions :: Options -> IO (SharedContext,[Goal])
 proofWithOptions opts =
   do elf <- getRelevant =<< getElf (fileName opts)
      translate opts elf (function opts)
@@ -231,7 +232,7 @@ posFn = OtherPos . Text.pack . show
 
 -- | Translate an assertion about the function with the given name to
 -- a SAW core term.
-translate :: Options -> RelevantElf -> Fun -> IO [Goal]
+translate :: Options -> RelevantElf -> Fun -> IO (SharedContext, [Goal])
 translate opts elf fun =
   do let name = funName fun
      sayLn ("Translating function: " ++ BSC.unpack name)
@@ -273,7 +274,9 @@ translate opts elf fun =
      statusBlock "  Setting-up post-conditions... " $
        runPostSpec sym (cryTerms extra) (regValue (gp ^. gpValue)) mem post
 
-     getGoals sym
+     gs <- getGoals sym
+     ctx <- sawBackendSharedContext sym
+     return (ctx,gs)
 
 ppAbort :: AbortedResult a b -> String
 ppAbort x =

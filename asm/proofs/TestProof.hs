@@ -5,15 +5,36 @@ import SAWScript.X86
 import SAWScript.X86Spec
 import Control.Exception(catch)
 
+import SAWScript.Prover.SBV(satUnintSBV)
+import qualified SAWScript.Prover.Goal as PG
+import qualified Data.SBV as SBV
+
+import Verifier.SAW.SharedTerm
+
 main :: IO ()
 main =
-  do gs <- proof linuxInfo "test/a.out"
+  do (ctx, gs) <- proof linuxInfo "test/a.out"
             Fun { funName = "f"
                 , funSpec = FunSpec { spec     = pre
                                     , cryDecls = Just "test/spec.cry" }
                 }
-     mapM_ ppGG gs
+     mapM_ (solveGoal ctx) gs
   `catch` \(X86Error e) -> putStrLn e
+
+toGoal :: Goal -> PG.ProofGoal
+toGoal g = PG.ProofGoal
+  { PG.goalQuant = PG.Universal
+  , PG.goalNum   = 0
+  , PG.goalType  = ""
+  , PG.goalName  = ""
+  , PG.goalTerm  = gShows g
+  }
+
+solveGoal :: SharedContext -> Goal -> IO ()
+solveGoal ctx g =
+  do (mb, stats) <- satUnintSBV SBV.z3 ctx [] (toGoal g)
+     print stats
+     print mb
 
 
 ppGG :: Goal -> IO ()

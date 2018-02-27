@@ -29,9 +29,11 @@ library
                       crucible-llvm,
                       crucible-saw,
                       saw-core,
+                      saw-core-sbv,
                       parameterized-utils,
                       cryptol-verifier,
-                      cryptol
+                      cryptol,
+                      sbv
 
   exposed-modules:
                       SAWScript.X86
@@ -44,6 +46,12 @@ library
                       SAWScript.X86Spec.SAW
                       SAWScript.X86Spec.Memory
 
+                      SAWScript.Prover.SBV
+                      SAWScript.Prover.Goal
+                      SAWScript.Prover.Rewrite
+                      SAWScript.Prover.SolverStats
+                      SAWScript.Prover.Util
+
   hs-source-dirs:     src
   ghc-options:        -Wall
   default-language:   Haskell2010
@@ -53,7 +61,7 @@ executable test-proof
   main-is:             TestProof.hs
   hs-source-dirs:      proofs
   build-depends:       base >=4.10 && <4.11,
-                       dasm
+                       dasm, sbv, saw-core
   ghc-options:         -Wall
   default-language:    Haskell2010
 

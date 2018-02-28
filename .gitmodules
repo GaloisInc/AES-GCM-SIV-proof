@@ -43,3 +43,18 @@
 [submodule "asm/deps/cryptol"]
 	path = asm/deps/cryptol
 	url = git@github.com:GaloisInc/cryptol.git
+[submodule "asm/deps/saw-script"]
+	path = asm/deps/saw-script
+	url = git@github.com:GaloisInc/saw-script.git
+[submodule "asm/deps/llvm-verifier"]
+	path = asm/deps/llvm-verifier
+	url = git@github.com:GaloisInc/llvm-verifier.git
+[submodule "asm/deps/jvm-verifier"]
+	path = asm/deps/jvm-verifier
+	url = git@github.com:GaloisInc/jvm-verifier.git
+[submodule "asm/deps/jvm-parser"]
+	path = asm/deps/jvm-parser
+	url = git@github.com:GaloisInc/jvm-parser.git
+[submodule "asm/deps/llvm-pretty-bc-parser"]
+	path = asm/deps/llvm-pretty-bc-parser
+	url = git@github.com:GaloisInc/llvm-pretty-bc-parser.git

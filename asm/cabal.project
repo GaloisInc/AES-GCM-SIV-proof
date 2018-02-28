@@ -19,3 +19,8 @@ packages:
   deps/abcBridge
   deps/cryptol-verifier
   deps/cryptol
+  deps/saw-script
+  deps/llvm-verifier
+  deps/jvm-verifier
+  deps/jvm-parser
+  deps/llvm-pretty-bc-parser

@@ -14,7 +14,7 @@ import SAWScript.Prover.SolverStats
 main :: IO ()
 main =
   do (ctx, gs) <- proof linuxInfo "test/a.out"
-            Fun { funName = "f"
+            Fun { funName = "AES_128_ENC_x4"
                 , funSpec = FunSpec { spec     = pre
                                     , cryDecls = Just "test/spec.cry" }
                 }

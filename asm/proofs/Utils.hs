@@ -1,3 +1,4 @@
+{-# Language RecordWildCards #-}
 module Utils (module Utils, module SAWScript.X86Spec) where
 
 import System.IO(hFlush,stdout)
@@ -24,13 +25,24 @@ doProof file cry fun pre =
   do (ctx, gs) <- proof linuxInfo file
             Fun { funName = fun
                 , funSpec = FunSpec
-                    { spec     = pre
+                    { spec     = setupComplexInstructions >> pre
                     , cryDecls = Just cry
                     } }
      mapM_ (solveGoal ctx) gs
   `catch` \(X86Error e) -> putStrLn e
 
+setupComplexInstructions :: Spec Pre ()
+setupComplexInstructions =
+  do aesenc     <- cryTerm "aesenc" []
+     aesenclast <- cryTerm "aesenclast" []
+     clmul      <- cryTerm "clmul" []
+     let bin f = \sc x y -> scApplyAll sc f [x,y]
 
+     registerSymFuns SymFunTerms
+                       { termAesEnc = bin aesenc
+                       , termAesEncLast = bin aesenclast
+                       , termClMul = bin clmul
+                       }
 
 solveGoal :: SharedContext -> Goal -> IO ()
 solveGoal ctx g =

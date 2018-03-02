@@ -1,4 +1,12 @@
 
+aesenc : [128] -> [128] -> [128]
+aesenc = error "XXX: aesenc"
+
+aesenclast : [128] -> [128] -> [128]
+aesenclast = error "XXX: aesenclast"
+
+clmul : [64] -> [64] -> [128]
+clmul = error "XXX: clmul"
 
 post : [16][8] ->
        [16*15][8] ->

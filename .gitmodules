@@ -1,60 +1,9 @@
 [submodule "AES-GCM-SIV"]
 	path = AES-GCM-SIV
 	url = git@github.com:Shay-Gueron/AES-GCM-SIV.git
-[submodule "asm/deps/macaw"]
-	path = asm/deps/macaw
-	url = git@github.com:GaloisInc/macaw.git
-[submodule "asm/deps/flexdis86"]
-	path = asm/deps/flexdis86
-	url = git@github.com:GaloisInc/flexdis86.git
-[submodule "asm/deps/parameterized-utils"]
-	path = asm/deps/parameterized-utils
-	url = git@github.com:GaloisInc/parameterized-utils.git
-[submodule "asm/deps/dwarf"]
-	path = asm/deps/dwarf
-	url = git@github.com:GaloisInc/dwarf.git
-[submodule "asm/deps/elf-edit"]
-	path = asm/deps/elf-edit
-	url = git@github.com:GaloisInc/elf-edit.git
-[submodule "asm/deps/crucible"]
-	path = asm/deps/crucible
-	url = git@github.com:GaloisInc/crucible.git
-[submodule "asm/deps/saw-core"]
-	path = asm/deps/saw-core
-	url = git@github.com:GaloisInc/saw-core.git
-[submodule "asm/deps/saw-core-aig"]
-	path = asm/deps/saw-core-aig
-	url = git@github.com:GaloisInc/saw-core-aig.git
-[submodule "asm/deps/llvm-pretty"]
-	path = asm/deps/llvm-pretty
-	url = git@github.com:elliottt/llvm-pretty.git
 [submodule "asm/abcBridge"]
 	path = asm/deps/abcBridge
 	url = https://github.com/GaloisInc/abcBridge.git
-[submodule "asm/deps/abcBridge"]
-	path = asm/deps/abcBridge
-	url = git@github.com:GaloisInc/abcBridge.git
-[submodule "asm/deps/cryptol-verifier"]
-	path = asm/deps/cryptol-verifier
-	url = git@github.com:GaloisInc/cryptol-verifier.git
-[submodule "asm/deps/saw-core-sbv"]
-	path = asm/deps/saw-core-sbv
-	url = git@github.com:GaloisInc/saw-core-sbv.git
-[submodule "asm/deps/cryptol"]
-	path = asm/deps/cryptol
-	url = git@github.com:GaloisInc/cryptol.git
 [submodule "asm/deps/saw-script"]
 	path = asm/deps/saw-script
 	url = git@github.com:GaloisInc/saw-script.git
-[submodule "asm/deps/llvm-verifier"]
-	path = asm/deps/llvm-verifier
-	url = git@github.com:GaloisInc/llvm-verifier.git
-[submodule "asm/deps/jvm-verifier"]
-	path = asm/deps/jvm-verifier
-	url = git@github.com:GaloisInc/jvm-verifier.git
-[submodule "asm/deps/jvm-parser"]
-	path = asm/deps/jvm-parser
-	url = git@github.com:GaloisInc/jvm-parser.git
-[submodule "asm/deps/llvm-pretty-bc-parser"]
-	path = asm/deps/llvm-pretty-bc-parser
-	url = git@github.com:GaloisInc/llvm-pretty-bc-parser.git

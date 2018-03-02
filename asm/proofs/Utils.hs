@@ -11,6 +11,9 @@ import SAWScript.Prover.Mode(ProverMode(Prove))
 import SAWScript.Prover.SBV(satUnintSBV,z3)
 import SAWScript.Prover.SolverStats
 
+import Verifier.SAW.SharedTerm
+import Data.Parameterized.NatRepr(natValue)
+
 doProof ::
   FilePath {- ^ Binary file -} ->
   FilePath {- ^ Cryptol spe file -} ->
@@ -60,5 +63,21 @@ ppGG g =
      putStrLn "Shows:"
      putStrLn (showTerm (gShows g))
      putStrLn "---------------"
+
+
+-- | If each term is of type @[n]@, then the result is of type @[x][n]@
+wordVec :: SharedContext -> Integer -> [Term] -> IO Term
+wordVec sc n xs =
+  do t <- scBitvector sc (fromInteger n)
+     scVector sc t xs
+
+
+packVecAt :: SAW t => X86 t -> [Value t] -> Spec p Term
+packVecAt ty xs =
+  do ys <- mapM toSAW xs
+     withSharedContext $ \sc -> wordVec sc (natValue (bitSize ty)) ys
+
+packVec :: (Infer t, SAW t) => [Value t] -> Spec p Term
+packVec = packVecAt infer
 
 

@@ -16,13 +16,13 @@ main =
      let valIP = ipFun IP
 
      (noncePtr,nonce) <- freshArray "IV" 16  Byte Immutable
-     (ctPtr,ct)       <- freshArray "CT" 16 QWord Mutable
+     (ptPtr,pt)       <- freshArray "PT"  8  QWord Mutable
      (keyPtr,keys)    <- freshArray "Keys" (16 * 15) Byte Immutable
 
 {-
      debug ("\nArguments:")
      debug ("  Nonce = " ++ show (ppVal noncePtr))
-     debug ("  CT    = " ++ show (ppVal ctPtr))
+     debug ("  CT    = " ++ show (ppVal ptPtr))
      debug ("  KEYS  = " ++ show (ppVal keyPtr))
 -}
 
@@ -31,7 +31,7 @@ main =
                     case r of
                       RSP -> gpUse rsp
                       RDI -> gpUse noncePtr
-                      RSI -> gpUse ctPtr
+                      RSI -> gpUse ptPtr
                       RDX -> gpUse keyPtr
                       _   -> GPFresh AsBits
 
@@ -60,18 +60,14 @@ main =
 
               expectSame "IP" ret =<< getReg IP
 
-{-
-              -- Arguments and results.
-              let GPBits arg1 = valGPReg RDI
-                  GPBits arg2 = valGPReg RSI
-              res <- getReg (RAX,AsBits)
-              a1 <- toSAW arg1
-              a2 <- toSAW arg2
-              re <- toSAW res
+              sIV <- packVec nonce
+              sPT <- packVec pt
+              sCT <- packVec =<< readArray QWord ptPtr 8
+              sKs <- packVec keys
+              ok <- saw Bool =<< cryTerm "post" [ sIV, sKs, sPT, sCT ]
 
-              ok <- saw Bool =<< cryTerm "post" [a1,a2,re]
               assert ok "Post condition not satisified."
--}
+
 
      return (r,post)
 
@@ -99,7 +95,7 @@ setupGlobals =
      registerRegion 0 reg
 
      let declare _nm offset ty xs =
-           do () <- return (const () (_nm :: String))
+           do () <- return (const () (_nm :: String)) -- tmp, to avoid warn
               ptr <- ptrAdd reg (offset .* Byte)
               writeMem ptr =<< mapM (literalAt ty) xs
 

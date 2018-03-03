@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -e
+
+DIR=verif-src
+TGT=proof_target
+FUN=AES_128_ENC_x4
+
+cabal new-build $FUN
+make -C $DIR
+objdump -D $DIR/$TGT > disassembled
+objdump -t $DIR/$TGT > symbols
+./$FUN

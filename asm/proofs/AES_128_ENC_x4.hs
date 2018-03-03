@@ -6,7 +6,7 @@ import Utils
 main :: IO ()
 main =
   doProof
-    "verif-src/AES_128_ENC_x4"
+    "verif-src/proof_target"
     "proofs/AES_128_ENC_x4.cry"
     "AES_128_ENC_x4" $
 
@@ -90,7 +90,7 @@ setupStack =
 -- For the time being, we hard-code the locations
 setupGlobals :: Spec Pre ()
 setupGlobals =
-  do let size = 0x400CFC
+  do let size = 0x403000
      reg <- allocBytes "globals" Immutable (size .* Byte)
      registerRegion 0 reg
 
@@ -99,9 +99,9 @@ setupGlobals =
               ptr <- ptrAdd reg (offset .* Byte)
               writeMem ptr =<< mapM (literalAt ty) xs
 
-     declare "con1"     0x4004c0 DWord [ 1, 1, 1, 1 ]
-     declare "one"      0x4004f0 DWord [ 1, 0, 0, 0 ]
-     declare "and_mask" 0x400500 DWord [ 0,0xffffffff, 0xffffffff, 0xffffffff ]
+     declare "con1"     0x402ba0 DWord [ 1, 1, 1, 1 ]
+     declare "one"      0x402bd0 DWord [ 1, 0, 0, 0 ]
+     declare "and_mask" 0x402be0 DWord [ 0,0xffffffff, 0xffffffff, 0xffffffff ]
 
 
 

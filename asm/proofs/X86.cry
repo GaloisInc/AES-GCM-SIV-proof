@@ -1,0 +1,11 @@
+module X86 where
+
+
+aesenc : [128] -> [128] -> [128]
+aesenc = error "XXX: aesenc"
+
+aesenclast : [128] -> [128] -> [128]
+aesenclast = error "XXX: aesenclast"
+
+clmul : [64] -> [64] -> [128]
+clmul = error "XXX: clmul"

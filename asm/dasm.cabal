@@ -16,7 +16,16 @@ cabal-version:       >=1.10
 executable AES_128_ENC_x4
   main-is:             AES_128_ENC_x4.hs
   hs-source-dirs:      proofs
-  other-modules:       Utils, Globals
+  other-modules:       Utils, Globals, Sizes
+  build-depends:       base >=4.10 && <4.11, bytestring, saw-script, saw-core,
+                       parameterized-utils
+  ghc-options:         -Wall
+  default-language:    Haskell2010
+
+executable Polyval_Horner
+  main-is:             Polyval_Horner.hs
+  hs-source-dirs:      proofs
+  other-modules:       Utils, Globals, Sizes
   build-depends:       base >=4.10 && <4.11, bytestring, saw-script, saw-core,
                        parameterized-utils
   ghc-options:         -Wall

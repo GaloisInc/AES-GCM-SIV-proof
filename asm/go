@@ -4,7 +4,7 @@ set -e
 
 DIR=verif-src
 TGT=proof_target
-FUN=AES_128_ENC_x4
+FUN=Polyval_Horner
 
 cabal new-build $FUN
 make -C $DIR

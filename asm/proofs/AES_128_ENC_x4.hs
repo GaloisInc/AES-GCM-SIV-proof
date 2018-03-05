@@ -12,6 +12,7 @@ main =
     "AES_128_ENC_x4" $
 
   do setupGlobals
+     (rsp,ret) <- setupNoParamStack 4
 
      ipFun <- freshRegs
      let valIP = ipFun IP
@@ -20,14 +21,6 @@ main =
      (ptPtr,pt)       <- freshArray "PT"  8  QWord Mutable
      (keyPtr,keys)    <- freshArray "Keys" (16 * 15) Byte Immutable
 
-{-
-     debug ("\nArguments:")
-     debug ("  Nonce = " ++ show (ppVal noncePtr))
-     debug ("  CT    = " ++ show (ppVal ptPtr))
-     debug ("  KEYS  = " ++ show (ppVal keyPtr))
--}
-
-     (rsp,ret) <- setupStack
      valGPReg <- setupGPRegs $ \r ->
                     case r of
                       RSP -> gpUse rsp
@@ -71,23 +64,3 @@ main =
 
 
      return (r,post)
-
-
-
-
--- | Allocate the stack, and return the value for RSP, the return address.
-setupStack :: Spec Pre (Value APtr, Value AQWord)
-setupStack =
-  -- Saves 3 registers: S1, S2, S3, RET
-  do stack <- allocBytes "stack" Mutable (4 .* QWord)
-     ret  <- fresh QWord "ret"
-     p    <- ptrAdd stack (3 .* QWord)
-     writeMem p ret
-
-     return (p, ret)
-
-
-
-
-
-

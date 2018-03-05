@@ -18,8 +18,8 @@ main =
      ipFun <- freshRegs
      let valIP = ipFun IP
 
-     ptrT             <- allocBytes "T" Mutable (16 .* Byte)
-     (ptrH,valH)      <- freshArray "H" 16  Byte Immutable
+     (ptrT,valT)      <- freshArray "T" 16 Byte Mutable
+     (ptrH,valH)      <- freshArray "H" 16 Byte Immutable
 
      let blocks       = aad_size_blocks :: Integer
          bufSize :: Int
@@ -27,7 +27,16 @@ main =
      (ptrBuf,valBuf)  <- freshArray "buf" bufSize Byte Immutable
      valBlocks        <- literalAt QWord blocks
 
-     (rsp,ret) <- setupStack
+     (rsp,ret) <- setupNoParamStack 14
+
+     debug "\nParameters:"
+     see "ptrT" ptrT
+     see "ptrH" ptrH
+     see "ptrBuf" ptrBuf
+     see "stack" rsp
+
+
+
      valGPReg <- setupGPRegs $ \r ->
                     case r of
                       RSP -> gpUse rsp
@@ -64,17 +73,6 @@ main =
 
 
 
-
--- | Allocate the stack, and return the value for RSP, the return address.
-setupStack :: Spec Pre (Value APtr, Value AQWord)
-setupStack =
-  -- Saves 10 registers: CALL, SAVE-10, RET
-  do stack <- allocBytes "stack" Mutable (12 .* QWord)
-     ret  <- fresh QWord "ret"
-     p    <- ptrAdd stack (11 .* QWord)
-     writeMem p ret
-
-     return (p, ret)
 
 
 

@@ -15,6 +15,10 @@ import SAWScript.Prover.SolverStats
 import Verifier.SAW.SharedTerm
 import Data.Parameterized.NatRepr(natValue)
 
+
+see :: Infer t => String -> Value t -> Spec p ()
+see x v = debug (x ++ " =" ++ ppVal v)
+
 doProof ::
   FilePath {- ^ Binary file -} ->
   FilePath {- ^ Cryptol spe file -} ->
@@ -91,5 +95,19 @@ packVecAt ty xs =
 
 packVec :: (Infer t, SAW t) => [Value t] -> Spec p Term
 packVec = packVecAt infer
+
+
+
+
+-- | Allocate a blank stack, assuming no parameters will be passed on the
+-- stack. Returns the value for RSP, the return address.
+setupNoParamStack :: Integer -> Spec Pre (Value APtr, Value AQWord)
+setupNoParamStack size =
+  do stack <- allocBytes "stack" Mutable (size .* QWord)
+     ret  <- fresh QWord "ret"
+     p    <- ptrAdd stack ((size - 1) .* QWord)
+     writeMem p ret
+
+     return (p, ret)
 
 

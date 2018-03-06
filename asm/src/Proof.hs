@@ -15,7 +15,7 @@ prove_AES_128_ENC_x4 :: IO ()
 prove_AES_128_ENC_x4 =
   doProof
     "verif-src/proof_target"
-    "proofs/AES_128_ENC_x4.cry"
+    "src/AES_128_ENC_x4.cry"
     "AES_128_ENC_x4" $
 
   do (noncePtr,nonce) <- freshArray "IV" 16  Byte Immutable
@@ -52,7 +52,7 @@ prove_Polyval_Horner :: IO ()
 prove_Polyval_Horner =
   doProof
     "verif-src/proof_target"
-    "proofs/Polyval_Horner.cry"
+    "src/Polyval_Horner.cry"
     "Polyval_Horner" $
 
   do (ptrT,valT)      <- freshArray "T" 16 Byte Mutable
@@ -81,7 +81,7 @@ prove_GFMUL :: IO ()
 prove_GFMUL =
   doProof
     "verif-src/proof_target"
-    "proofs/GFMUL.cry"
+    "src/GFMUL.cry"
     "_GFMUL" $
 
   do valH   <- fresh Vec "H"

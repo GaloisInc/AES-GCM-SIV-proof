@@ -3,6 +3,7 @@ module Utils (module Utils, module SAWScript.X86Spec) where
 
 import System.IO(hFlush,stdout)
 import Data.ByteString(ByteString)
+import qualified Data.Map as Map
 import Control.Exception(catch)
 
 import SAWScript.X86
@@ -26,7 +27,7 @@ doProof ::
   Spec Pre (RegAssign, Spec Post ()) {- ^ Spec for the function -} ->
   IO ()
 doProof file cry fun pre =
-  do (ctx, gs) <- proof linuxInfo file
+  do (ctx, gs) <- proof linuxInfo file Map.empty {-- XXX -}
             Fun { funName = fun
                 , funSpec = FunSpec
                     { spec     = setupComplexInstructions >> pre

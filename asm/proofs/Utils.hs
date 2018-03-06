@@ -16,6 +16,8 @@ import SAWScript.Prover.SolverStats
 import Verifier.SAW.SharedTerm
 import Data.Parameterized.NatRepr(natValue)
 
+import Globals
+
 
 see :: Infer t => String -> Value t -> Spec p ()
 see x v = debug (x ++ " =" ++ ppVal v)
@@ -27,14 +29,67 @@ doProof ::
   Spec Pre (RegAssign, Spec Post ()) {- ^ Spec for the function -} ->
   IO ()
 doProof file cry fun pre =
-  do (ctx, gs) <- proof linuxInfo file Map.empty {-- XXX -}
+  do putStrLn (replicate 80 '-')
+     (ctx, gs) <- proof linuxInfo file Map.empty {-- XXX -}
             Fun { funName = fun
                 , funSpec = FunSpec
-                    { spec     = setupComplexInstructions >> pre
+                    { spec     = pre
                     , cryDecls = Just cry
                     } }
      mapM_ (solveGoal ctx) gs
   `catch` \(X86Error e) -> putStrLn e
+
+
+-- | Basic pre-condition setup.
+-- Intiializes complex machine instructions, globals,
+-- the stack, and X87 state.
+setupContext ::
+  Integer {- ^ Size of stack in QWords -} ->
+  (GPReg -> GPSetup) {- ^ Initialization for GP regs (stack auto) -} ->
+  (VecReg -> Maybe (Value AVec)) {- ^ Setup for vector registers -} ->
+  Spec Pre (RegAssign, Spec Post ())
+setupContext stackSize setupGP setupVec =
+  do setupComplexInstructions
+     setupGlobals
+
+     ipFun <- freshRegs
+     let valIP = ipFun IP
+
+     (rsp,ret) <- setupNoParamStack stackSize
+
+     valGPReg <- setupGPRegs $ \r ->
+                   case r of
+                     RSP -> gpUse rsp
+                     _   -> setupGP r
+
+     valVecReg <- setupVecRegs setupVec
+
+     -- X87, unused in these proofs
+     valFPReg     <- freshRegs
+     valFlag      <- freshRegs
+     valX87Status <- freshRegs
+     valX87TopF   <- freshRegs
+     let valX87Top = valX87TopF X87Top
+     valX87Tag <- freshRegs
+     let r = RegAssign { .. }
+
+     -- basic post
+     let post =
+            do preserveGP r RBX
+               preserveGP r RBP
+               preserveGP r R12
+               preserveGP r R13
+               preserveGP r R14
+               preserveGP r R15
+
+               expectRSP <- ptrAdd rsp (1 .* QWord)
+               expectSame "RSP" expectRSP =<< getReg (RSP,AsPtr)
+
+               expectSame "IP" ret =<< getReg IP
+
+     return (r, post)
+
+
 
 setupComplexInstructions :: Spec Pre ()
 setupComplexInstructions =

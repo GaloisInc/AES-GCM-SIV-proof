@@ -4,10 +4,10 @@ set -e
 
 DIR=verif-src
 TGT=proof_target
-FUN=Polyval_Horner
+EXE=Proof
 
-cabal new-build $FUN
+cabal new-build $EXE
 make -C $DIR
 objdump -D $DIR/$TGT > disassembled
 objdump -t $DIR/$TGT > symbols
-./$FUN
+./$EXE

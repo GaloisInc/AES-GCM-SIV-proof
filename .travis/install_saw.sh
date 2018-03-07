@@ -27,15 +27,15 @@ if [ ! -f z3/bin/z3 ] || [ ! -f yices/bin/yices-smt2 ]; then
 
     z3/bin/z3 --version
     yices/bin/yices-smt2 --version
-
+fi
     SAW_BIN=$(pwd)/saw/bin
     Z3_BIN=$(pwd)/z3/bin
     YICES_BIN=$(pwd)/yices/bin
-fi
+
     export PATH=$SAW_BIN:$Z3_BIN:$YICES_BIN:$PATH
 
 
 cd ..
 
-#Turn those back off, so they don't effect our Travis script
+#Turn those back off, so they don't affect our Travis script
 set +ex

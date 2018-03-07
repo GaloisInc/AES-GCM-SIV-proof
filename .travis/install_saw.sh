@@ -31,9 +31,9 @@ if [ ! -f z3/bin/z3 ] || [ ! -f yices/bin/yices-smt2 ]; then
     SAW_BIN=$(pwd)/saw/bin
     Z3_BIN=$(pwd)/z3/bin
     YICES_BIN=$(pwd)/yices/bin
-
-    export PATH=$SAW_BIN:$Z3_BIN:$YICES_BIN:$PATH
 fi
+    export PATH=$SAW_BIN:$Z3_BIN:$YICES_BIN:$PATH
+
 
 cd ..
 

@@ -11,6 +11,7 @@ main =
      -- prove_Polyval_Horner
 
 
+
 prove_GFMUL :: IO ()
 prove_GFMUL =
   doProof "_GFMUL" $
@@ -38,7 +39,7 @@ prove_GFMUL =
                    sawRes <- toSAW valRes
                    ymm0   <- toSAW =<< getReg YMM0
                    ok     <- saw Bool =<<
-                               cryTerm "GFMUL_post" [ sawRes, sawH, ymm0 ]
+                               cryTerm "GFMUL_post" [ sawH, sawRes, ymm0 ]
                    assert ok "Post condition not satisified."
 
 

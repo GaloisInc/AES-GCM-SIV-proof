@@ -4,44 +4,5 @@ import X86
 import GCM_SIV_128
 
 GFMUL_post : [256] -> [256] -> [256] -> Bool
-GFMUL_post (_ # h) (_ # in_res) (_ # out_res) = fun h in_res == out_res
-
-mulqdq : ([1],[1]) -> [128] -> [128] -> [128]
-mulqdq (arg1,arg2) (xU # xL) (yU # yL) = clmul a b
-  where
-  a = if arg1 == 1 then xU else xL
-  b = if arg2 == 1 then yU else yL
-
-poly : [128]
-poly = 0xc200000000000000 # 1
-
-
-fun : [128] -> [128] -> [128]
-fun H RES = tmp4' ^ tmp1_3
-  where
-  tmp1 = mulqdq (0,0) H RES
-  tmp4 = mulqdq (1,1) H RES
-  tmp2 = mulqdq (1,0) H RES
-  tmp3 = mulqdq (0,1) H RES
-
-  tmp2'  = tmp3 ^ tmp2
-  tmp3'  = tmp2' << 64
-  tmp2'' = tmp2' >> 64
-  tmp1'  = tmp3' ^ tmp1
-  tmp4'  = tmp2'' ^ tmp4
-
-  tmp2_3 = mulqdq (1,0) poly tmp1'
-
-  // nums = [ 2, 3, 0, 1 ]
-  nums = [ 1, 0, 3, 2 ]
-  // 78 = 0x4e = 01 00 11 10 = [ 1,0,3,2]
-
-  tmp3'' = join (split`{each=32} tmp1' @@ nums)
-  tmp1'' = tmp3'' ^ tmp2_3
-
-  tmp2_4 = mulqdq (1,0) poly tmp1''
-  tmp3_3 = join (split`{each=32} tmp1'' @@ nums)
-  tmp1_3 = tmp3_3 ^ tmp2_4
-
-
+GFMUL_post (_ # h) (_ # in_res) (_ # out_res) = dot h in_res == out_res
 

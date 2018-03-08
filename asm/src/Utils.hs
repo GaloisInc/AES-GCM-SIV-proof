@@ -114,8 +114,8 @@ solveGoal ctx g =
      putStr "  Working... "
      hFlush stdout
      writeFile "GG.hs" (scPrettyTerm defaultPPOpts term)
-     (mb, stats) <- satUnintSBV z3 ctx [] Prove term
-     -- (mb, stats) <- satRME ctx Prove term
+     -- (mb, stats) <- satUnintSBV z3 ctx [] Prove term
+     (mb, stats) <- satRME ctx Prove term
      putStrLn (ppStats stats)
      case mb of
        Nothing -> putStrLn "  Success!"

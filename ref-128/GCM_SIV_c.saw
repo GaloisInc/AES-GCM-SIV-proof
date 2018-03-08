@@ -3,7 +3,7 @@
 // Takes about 10 mins on my computer.
 AES_128_Key_Expansion <-
   proof
-    proving "AES_128_Key_Expansion"
+    skipping "AES_128_Key_Expansion"
     c_code
     "AES_128_Key_Expansion"
     []
@@ -21,7 +21,7 @@ AES_128_Key_Expansion <-
 // Takes about 9 hours on my computer.
 AES_128_Encrypt <-
   proof
-    proving "AES_128_Encrypt"
+    skipping "AES_128_Encrypt"
     c_code
     "AES_128_Encrypt"
     [ emulated_aesenc
@@ -56,7 +56,7 @@ gfmul_int <-
     proving "gfmul_int"
     c_code
     "gfmul_int"
-    [vclmul_emulator]
+    [] // [vclmul_emulator]
     false
     do {
       (a,val_a) <- allocArrayIn "a" 2 i64;
@@ -66,8 +66,7 @@ gfmul_int <-
       crucible_execute_func [ a, b, a ];
       pointsTo a {{ to64 (dot (from64 val_a) (from64 val_b)) }};
     }
-    rme;
-
+    (do { print_goal; rme; });
 
 let provePOLYVAL n =
   proof
@@ -134,7 +133,7 @@ AES_128_CTR <-
 
 GCM_SIV_ENC_2_Keys <-
   proof
-    proving "GCM_SIV_ENC_2_Keys"
+    skipping "GCM_SIV_ENC_2_Keys"
     c_code
     "GCM_SIV_ENC_2_Keys"
     [ AES_128_Key_Expansion

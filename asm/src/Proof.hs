@@ -7,16 +7,52 @@ import Sizes
 main :: IO ()
 main =
   do prove_GFMUL
-     prove_Polyval_Horner
-     prove_AES_128_ENC_x4
+     -- prove_AES_128_ENC_x4
+     -- prove_Polyval_Horner
+
+
+prove_GFMUL :: IO ()
+prove_GFMUL =
+  doProof "_GFMUL" $
+
+  do valH   <- fresh Vec "H"
+     valRes <- fresh Vec "RES"
+
+
+     let gpRegs _ = GPFresh AsBits
+         vecRegs r =
+            case r of
+              YMM0 -> Just valRes
+              YMM1 -> Just valH
+              _    -> Nothing
+
+     (r, basicPost) <- setupContext 1 gpRegs vecRegs
+
+     let post = do basicPost
+
+                   let ymm1 = valVecReg r YMM1
+                   ymm1' <- getReg YMM1
+                   expectSame "GFMUL preserves XMM1" ymm1 ymm1'
+
+                   sawH   <- toSAW valH
+                   sawRes <- toSAW valRes
+                   ymm0   <- toSAW =<< getReg YMM0
+                   ok     <- saw Bool =<<
+                               cryTerm "GFMUL_post" [ sawRes, sawH, ymm0 ]
+                   assert ok "Post condition not satisified."
+
+
+
+
+     return (r,post)
+
+
+
 
 
 prove_AES_128_ENC_x4 :: IO ()
 prove_AES_128_ENC_x4 =
-  doProof
-    "verif-src/proof_target"
-    "src/AES_128_ENC_x4.cry"
-    "AES_128_ENC_x4" $
+  doProof "AES_128_ENC_x4" $
 
   do (noncePtr,nonce) <- freshArray "IV" 16  Byte Immutable
      (ptPtr,pt)       <- freshArray "PT"  8  QWord Mutable
@@ -29,7 +65,7 @@ prove_AES_128_ENC_x4 =
              RDX -> gpUse keyPtr
              _   -> GPFresh AsBits
 
-     (r,basicPost) <-setupContext 4 gpRegs (const Nothing)
+     (r,basicPost) <- setupContext 4 gpRegs (const Nothing)
 
 
      let post =
@@ -50,10 +86,7 @@ prove_AES_128_ENC_x4 =
 
 prove_Polyval_Horner :: IO ()
 prove_Polyval_Horner =
-  doProof
-    "verif-src/proof_target"
-    "src/Polyval_Horner.cry"
-    "Polyval_Horner" $
+  doProof "Polyval_Horner" $
 
   do (ptrT,valT)      <- freshArray "T" 16 Byte Mutable
      (ptrH,valH)      <- freshArray "H" 16 Byte Immutable
@@ -62,6 +95,10 @@ prove_Polyval_Horner =
          bufSize      = blocks * bytesToInteger block_size
      (ptrBuf,valBuf)  <- freshArray "buf" bufSize Byte Immutable
      valBlocks        <- literalAt QWord blocks
+
+     see "T" ptrT
+     see "H" ptrH
+     see "Buf" ptrBuf
 
      let gpRegs r =
            case r of
@@ -72,29 +109,6 @@ prove_Polyval_Horner =
              _   -> GPFresh AsBits
 
      (r,basicPost) <- setupContext 14 gpRegs (const Nothing)
-
-     return (r,basicPost)
-
-
-
-prove_GFMUL :: IO ()
-prove_GFMUL =
-  doProof
-    "verif-src/proof_target"
-    "src/GFMUL.cry"
-    "_GFMUL" $
-
-  do valH   <- fresh Vec "H"
-     valRes <- fresh Vec "RES"
-
-     let gpRegs _ = GPFresh AsBits
-         vecRegs r =
-            case r of
-              YMM0 -> Just valRes
-              YMM1 -> Just valH
-              _    -> Nothing
-
-     (r, basicPost) <- setupContext 1 gpRegs vecRegs
 
      return (r,basicPost)
 

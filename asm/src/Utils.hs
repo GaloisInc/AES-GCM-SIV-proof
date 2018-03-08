@@ -3,7 +3,6 @@ module Utils (module Utils, module SAWScript.X86Spec) where
 
 import System.IO(hFlush,stdout)
 import Data.ByteString(ByteString)
-import qualified Data.Map as Map
 import Control.Exception(catch)
 
 import SAWScript.X86
@@ -11,30 +10,30 @@ import SAWScript.X86Spec
 
 import SAWScript.Prover.Mode(ProverMode(Prove))
 import SAWScript.Prover.SBV(satUnintSBV,z3)
+import SAWScript.Prover.RME(satRME)
 import SAWScript.Prover.SolverStats
 
 import Verifier.SAW.SharedTerm
 import Data.Parameterized.NatRepr(natValue)
 
-import Globals
+import Globals(setupGlobals)
+import Overrides(overrides)
 
 
 see :: Infer t => String -> Value t -> Spec p ()
 see x v = debug (x ++ " =" ++ ppVal v)
 
 doProof ::
-  FilePath {- ^ Binary file -} ->
-  FilePath {- ^ Cryptol spe file -} ->
   ByteString {- ^ Name of the function -} ->
   Spec Pre (RegAssign, Spec Post ()) {- ^ Spec for the function -} ->
   IO ()
-doProof file cry fun pre =
+doProof fun pre =
   do putStrLn (replicate 80 '-')
-     (ctx, gs) <- proof linuxInfo file Map.empty {-- XXX -}
+     (ctx, gs) <- proof linuxInfo "./verif-src/proof_target" overrides
             Fun { funName = fun
                 , funSpec = FunSpec
                     { spec     = pre
-                    , cryDecls = Just cry
+                    , cryDecls = Just "../cryptol-specs/Asm128.cry"
                     } }
      mapM_ (solveGoal ctx) gs
   `catch` \(X86Error e) -> putStrLn e
@@ -56,6 +55,8 @@ setupContext stackSize setupGP setupVec =
      let valIP = ipFun IP
 
      (rsp,ret) <- setupNoParamStack stackSize
+
+     see "RSP" rsp
 
      valGPReg <- setupGPRegs $ \r ->
                    case r of
@@ -112,7 +113,9 @@ solveGoal ctx g =
      putStrLn ("  Reason: " ++ ppReason (gMessage g))
      putStr "  Working... "
      hFlush stdout
+     writeFile "GG.hs" (scPrettyTerm defaultPPOpts term)
      (mb, stats) <- satUnintSBV z3 ctx [] Prove term
+     -- (mb, stats) <- satRME ctx Prove term
      putStrLn (ppStats stats)
      case mb of
        Nothing -> putStrLn "  Success!"

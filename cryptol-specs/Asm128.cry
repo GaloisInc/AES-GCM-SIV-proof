@@ -4,5 +4,8 @@ import X86
 import GCM_SIV_128
 
 GFMUL_post : [256] -> [256] -> [256] -> Bool
-GFMUL_post (_ # h) (_ # in_res) (_ # out_res) = dot h in_res == out_res
+GFMUL_post h res out = dot256 h res == out
+
+dot256 : [256] -> [256] -> [256]
+dot256 (_ # h) (_ # res) = 0 # dot h res
 

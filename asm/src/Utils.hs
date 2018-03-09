@@ -17,7 +17,7 @@ import Verifier.SAW.SharedTerm
 import Data.Parameterized.NatRepr(natValue)
 
 import Globals(setupGlobals)
-import Overrides(overrides)
+import Overrides(setupOverrides)
 
 
 see :: Infer t => String -> Value t -> Spec p ()
@@ -29,11 +29,13 @@ doProof ::
   IO ()
 doProof fun pre =
   do putStrLn (replicate 80 '-')
-     (ctx, gs) <- proof linuxInfo "./verif-src/proof_target" overrides
+     let cry = "../cryptol-specs/Asm128.cry"
+     (ctx, gs) <- proof linuxInfo "./verif-src/proof_target"
+                                  (setupOverrides cry)
             Fun { funName = fun
                 , funSpec = FunSpec
                     { spec     = pre
-                    , cryDecls = Just "../cryptol-specs/Asm128.cry"
+                    , cryDecls = Just cry
                     } }
      mapM_ (solveGoal ctx) gs
   `catch` \(X86Error e) -> putStrLn e

@@ -17,6 +17,7 @@ setupGlobals =
               writeMem ptr =<< mapM (literalAt ty) xs
 
      declare "poly"     0x400d40 QWord [ 0x1, 0xc200000000000000 ]
+     declare "poly"     0x401040 QWord [ 0x1, 0xc200000000000000 ]
      declare "con1"     0x402ba0 DWord [ 1, 1, 1, 1 ]
      declare "one"      0x402bd0 DWord [ 1, 0, 0, 0 ]
      declare "and_mask" 0x402be0 DWord [ 0,0xffffffff, 0xffffffff, 0xffffffff ]

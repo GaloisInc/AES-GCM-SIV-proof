@@ -1,20 +1,23 @@
 {-# Language OverloadedStrings #-}
 module Main where
 
+import Data.ByteString(ByteString)
+
 import Utils
 import Sizes
 
 main :: IO ()
 main =
-  do prove_GFMUL
+  do prove_GFMUL "_GFMUL"
+     prove_GFMUL "GFMUL"
      -- prove_AES_128_ENC_x4
      -- prove_Polyval_Horner
 
 
 
-prove_GFMUL :: IO ()
-prove_GFMUL =
-  doProof "_GFMUL" $
+prove_GFMUL :: ByteString -> IO ()
+prove_GFMUL gfMulVer =
+  doProof gfMulVer $
 
   do valH   <- fresh Vec "H"
      valRes <- fresh Vec "RES"

@@ -8,10 +8,10 @@ import Sizes
 
 main :: IO ()
 main =
-  do prove_GFMUL "_GFMUL"
-     prove_GFMUL "GFMUL"
+  do -- prove_GFMUL "_GFMUL"
+     -- prove_GFMUL "GFMUL"
+     prove_Polyval_Horner
      -- prove_AES_128_ENC_x4
-     -- prove_Polyval_Horner
 
 
 
@@ -95,10 +95,9 @@ prove_Polyval_Horner =
   do (ptrT,valT)      <- freshArray "T" 16 Byte Mutable
      (ptrH,valH)      <- freshArray "H" 16 Byte Immutable
 
-     let blocks       = aad_size_blocks
-         bufSize      = blocks * bytesToInteger block_size
-     (ptrBuf,valBuf)  <- freshArray "buf" bufSize Byte Immutable
-     valBlocks        <- literalAt QWord blocks
+     let aadSize      = bytesToInteger aad_size
+     (ptrBuf,valBuf)  <- freshArray "buf" aadSize Byte Immutable
+     valSize          <- literalAt QWord aadSize
 
      see "T" ptrT
      see "H" ptrH
@@ -109,9 +108,11 @@ prove_Polyval_Horner =
              RDI -> gpUse ptrT
              RSI -> gpUse ptrH
              RDX -> gpUse ptrBuf
-             RCX -> gpUse valBlocks
+             RCX -> gpUse valSize
              _   -> GPFresh AsBits
 
+     -- Save 10 register; 16 bytes local; RET of call; our Ret
+     -- 10 + 2 + 1 + 1
      (r,basicPost) <- setupContext 14 gpRegs (const Nothing)
 
      return (r,basicPost)

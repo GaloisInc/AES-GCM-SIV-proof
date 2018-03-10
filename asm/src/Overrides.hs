@@ -26,7 +26,7 @@ import Lang.Crucible.Solver.Interface
 import Lang.Crucible.Solver.Symbol(userSymbol)
 import Lang.Crucible.Solver.SAWCoreBackend
                   (toSC, sawBackendSharedContext, bindSAWTerm)
-import Lang.Crucible.LLVM.MemModel(doPtrAddOffset, doLoad, coerceAny)
+import Lang.Crucible.LLVM.MemModel(doPtrAddOffset, doLoad, coerceAny, ppMem)
 import Lang.Crucible.LLVM.MemModel.Pointer
 import Lang.Crucible.LLVM.MemModel.Type(bitvectorType)
 import Data.Macaw.X86.X86Reg
@@ -56,7 +56,8 @@ n256 = knownNat
 
 gfmul_override :: Term -> CallHandler
 gfmul_override dot sym (mem,r) =
-  do ymm2 <- freshYMM sym 2
+  do putStrLn "*** Enter GFMUL override"
+     ymm2 <- freshYMM sym 2
      ymm3 <- freshYMM sym 3
      ymm4 <- freshYMM sym 4
      ymm5 <- freshYMM sym 5
@@ -64,11 +65,18 @@ gfmul_override dot sym (mem,r) =
      let Just (RV sp)   = lookupX86Reg RSP r
          Just (RV res0) = lookupX86Reg (YMM (ymmReg 0)) r
          Just (RV h)    = lookupX86Reg (YMM (ymmReg 1)) r
+{-
+     print ("SP on entry = " ++ show (ppPtr sp))
 
+     putStrLn "MEMORY:"
+     print (ppMem mem)
+-}
      let ?ptrWidth = knownNat
+{-
      ip <- do x <- doLoad sym mem sp (bitvectorType 8) 0
               v <- coerceAny sym (LLVMPointerRepr knownNat) x
               return (RV v)
+-}
      newSP <- RV <$> (doPtrAddOffset sym mem sp =<< bvLit sym knownNat 8)
 
 
@@ -80,8 +88,8 @@ gfmul_override dot sym (mem,r) =
      sawRes <- scApplyAll ctx dot [ sawH, sawRes0 ]
      res <- llvmPointer_bv sym =<< bindSAWTerm sym (BaseBVRepr n256) sawRes
 
-     let r1 = updReg X86_IP ip
-            $ updReg RSP newSP
+     let r1 = {-updReg X86_IP ip
+            $ -}updReg RSP newSP
             $ updReg (YMM (ymmReg 0)) (RV res)
             $ updReg (YMM (ymmReg 2)) ymm2
             $ updReg (YMM (ymmReg 3)) ymm3
@@ -89,6 +97,8 @@ gfmul_override dot sym (mem,r) =
             $ updReg (YMM (ymmReg 5)) ymm5
               r
 
+
+     putStrLn "*** Exit GFMUL override"
      return (mem,r1)
 
 

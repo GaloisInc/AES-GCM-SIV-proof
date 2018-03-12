@@ -89,9 +89,7 @@ prove_Polyval_Horner :: IO ()
 prove_Polyval_Horner =
   let name = "Polyval_Horner" in
   doProof name
-     -- satABC $
-     -- (satUnintSBV z3 ["dot"]) $
-     satRME $
+     (oneOf [ satABC, satRME, satUnintSBV z3 [] ]) $
   do (ptrT,valT)      <- freshArray "T" 16 Byte Mutable
      (ptrH,valH)      <- freshArray "H" 16 Byte Immutable
 

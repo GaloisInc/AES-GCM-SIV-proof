@@ -4,6 +4,7 @@ module Utils (module Utils, module SAWScript.X86Spec) where
 import System.IO(hFlush,stdout)
 import Data.ByteString(ByteString)
 import Control.Exception(catch)
+import Control.Concurrent(forkIO,newEmptyMVar,takeMVar,putMVar,killThread)
 
 import SAWScript.X86
 import SAWScript.X86Spec
@@ -179,3 +180,17 @@ assertPost :: ByteString -> String -> [Term] -> Spec Post ()
 assertPost fun cryName args =
   do ok <- saw Bool =<< cryTerm cryName args
      assert ok ("Post condition for " ++ show fun)
+
+oneOf :: [ Prover ] -> Prover
+oneOf ps sc mode term =
+  do res <- newEmptyMVar
+     workers <- mapM (startWorker res) ps
+     r <- takeMVar res
+     mapM_ killThread workers
+     return r
+  where
+  startWorker res p = forkIO (putMVar res =<< p sc mode term)
+
+
+
+

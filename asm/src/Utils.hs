@@ -7,13 +7,11 @@ import Control.Exception(catch)
 
 import SAWScript.X86
 import SAWScript.X86Spec
-
-import SAWScript.Prover.Mode(ProverMode(Prove))
-import SAWScript.Prover.SBV(satUnintSBV,z3)
-import SAWScript.Prover.RME(satRME)
 import SAWScript.Prover.SolverStats
+import SAWScript.Prover.Mode(ProverMode(Prove))
 
 import Verifier.SAW.SharedTerm
+import Verifier.SAW.FiniteValue(FirstOrderValue)
 import Data.Parameterized.NatRepr(natValue)
 
 import Globals(setupGlobals)
@@ -23,11 +21,17 @@ import Overrides(setupOverrides)
 see :: Infer t => String -> Value t -> Spec p ()
 see x v = debug (x ++ " =" ++ ppVal v)
 
+type Prover = SharedContext ->
+              ProverMode ->
+              Term ->
+              IO (Maybe [(String,FirstOrderValue)], SolverStats)
+
 doProof ::
   ByteString {- ^ Name of the function -} ->
+  Prover ->
   Spec Pre (RegAssign, Spec Post ()) {- ^ Spec for the function -} ->
   IO ()
-doProof fun pre =
+doProof fun strategy pre =
   do putStrLn (replicate 80 '-')
      let cry = "../cryptol-specs/Asm128.cry"
      (ctx, gs) <- proof linuxInfo "./verif-src/proof_target"
@@ -37,7 +41,7 @@ doProof fun pre =
                     { spec     = pre
                     , cryDecls = Just cry
                     } }
-     mapM_ (solveGoal ctx) gs
+     mapM_ (solveGoal strategy ctx) gs
   `catch` \(X86Error e) -> putStrLn e
 
 
@@ -107,8 +111,8 @@ setupComplexInstructions =
                        , termClMul = bin clmul
                        }
 
-solveGoal :: SharedContext -> Goal -> IO ()
-solveGoal ctx g =
+solveGoal :: Prover -> SharedContext -> Goal -> IO ()
+solveGoal prover ctx g =
   do term <- gGoal ctx g
      putStrLn "Proving goal"
      putStrLn ("  Source: " ++ show (gLoc g))
@@ -116,8 +120,7 @@ solveGoal ctx g =
      putStr "  Working... "
      hFlush stdout
      writeFile "GG.hs" (scPrettyTerm defaultPPOpts term)
-     -- (mb, stats) <- satUnintSBV z3 ctx [] Prove term
-     (mb, stats) <- satRME ctx Prove term
+     (mb, stats) <- prover ctx Prove term
      putStrLn (ppStats stats)
      case mb of
        Nothing -> putStrLn "  Success!"
@@ -172,3 +175,7 @@ setupNoParamStack size =
      return (p, ret)
 
 
+assertPost :: ByteString -> String -> [Term] -> Spec Post ()
+assertPost fun cryName args =
+  do ok <- saw Bool =<< cryTerm cryName args
+     assert ok ("Post condition for " ++ show fun)

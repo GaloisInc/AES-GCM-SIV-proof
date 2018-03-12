@@ -3,9 +3,27 @@ module Asm128 where
 import X86
 import GCM_SIV_128
 
+// Should match what's in Sizes.hs
+type AAD_Size = 17
+
 GFMUL_post : [256] -> [256] -> [256] -> Bool
 GFMUL_post h res out = dot256 h res == out
 
 dot256 : [256] -> [256] -> [256]
 dot256 (_ # h) (_ # res) = 0 # dot h res
+
+Polyval_Horner_post : [16][8] -> [AAD_Size][8] -> [16][8] -> [16][8] -> Bool
+Polyval_Horner_post h i t t' =
+  polyvalFrom (leBytesToBits h) (leBytesToBlocks i) (leBytesToBits t)
+                                                            == leBytesToBits t'
+
+tmp : [16][8] -> [AAD_Size][8] -> [16][8] -> [128]
+tmp h i t = polyvalFrom (leBytesToBits h) (leBytesToBlocks i) (leBytesToBits t)
+
+
+leBytesToBits : {n} (fin n) => [n][8] -> [n*8]
+leBytesToBits xs = join (reverse xs)
+
+leBytesToBlocks : {n} (fin n) => [n][8] -> [n /^ 16][128]
+leBytesToBlocks xs = [ leBytesToBits bs | bs <- split (xs # zero) ]
 

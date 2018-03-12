@@ -2,11 +2,12 @@ module Sizes where
 
 import SAWScript.X86Spec
 
+aad_size :: Bytes
+aad_size = 17
+
+
 block_size :: Bytes
 block_size = 16
-
-aad_size :: Bytes
-aad_size = 36
 
 aad_size_blocks :: Integer
 aad_size_blocks = bytesToBlocks (bytesToInteger aad_size)

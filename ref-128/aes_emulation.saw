@@ -29,7 +29,7 @@ unflatShedule (first # rounds # last) =
 
 emulated_aesenc_substitute_bytes <-
   proof
-    proving "emulated_aesenc_substitute_bytes"
+    skipping "emulated_aesenc_substitute_bytes"
     c_code
     "emulated_aesenc_substitute_bytes"
     []
@@ -44,7 +44,7 @@ emulated_aesenc_substitute_bytes <-
 
 emulated_aesenc_row_shifting <-
   proof
-    proving "emulated_aesenc_row_shifting"
+    skipping "emulated_aesenc_row_shifting"
     c_code
     "emulated_aesenc_row_shifting"
     []
@@ -59,7 +59,7 @@ emulated_aesenc_row_shifting <-
 
 emulated_aesenclast <-
   proof
-    proving "emulated_aesenclast"
+    skipping "emulated_aesenclast"
     c_code
     "emulated_aesenclast"
     [ emulated_aesenc_substitute_bytes
@@ -78,7 +78,7 @@ emulated_aesenclast <-
 
 emulated_aesenc <-
   proof
-    proving "emulated_aesenc"
+    skipping "emulated_aesenc"
     c_code
     "emulated_aesenc"
     []

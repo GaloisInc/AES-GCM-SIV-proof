@@ -3,6 +3,10 @@ module Main where
 
 import Data.ByteString(ByteString)
 
+import SAWScript.Prover.SBV(satUnintSBV,z3)
+import SAWScript.Prover.RME(satRME)
+import SAWScript.Prover.ABC(satABC)
+
 import Utils
 import Sizes
 
@@ -17,8 +21,7 @@ main =
 
 prove_GFMUL :: ByteString -> IO ()
 prove_GFMUL gfMulVer =
-  doProof gfMulVer $
-
+  doProof gfMulVer satRME $
   do valH   <- fresh Vec "H"
      valRes <- fresh Vec "RES"
 
@@ -41,12 +44,7 @@ prove_GFMUL gfMulVer =
                    sawH   <- toSAW valH
                    sawRes <- toSAW valRes
                    ymm0   <- toSAW =<< getReg YMM0
-                   ok     <- saw Bool =<<
-                               cryTerm "GFMUL_post" [ sawH, sawRes, ymm0 ]
-                   assert ok "Post condition not satisified."
-
-
-
+                   assertPost gfMulVer "GFMUL_post" [ sawH, sawRes, ymm0 ]
 
      return (r,post)
 
@@ -56,8 +54,7 @@ prove_GFMUL gfMulVer =
 
 prove_AES_128_ENC_x4 :: IO ()
 prove_AES_128_ENC_x4 =
-  doProof "AES_128_ENC_x4" $
-
+  doProof "AES_128_ENC_x4" undefined $
   do (noncePtr,nonce) <- freshArray "IV" 16  Byte Immutable
      (ptPtr,pt)       <- freshArray "PT"  8  QWord Mutable
      (keyPtr,keys)    <- freshArray "Keys" (16 * 15) Byte Immutable
@@ -90,8 +87,11 @@ prove_AES_128_ENC_x4 =
 
 prove_Polyval_Horner :: IO ()
 prove_Polyval_Horner =
-  doProof "Polyval_Horner" $
-
+  let name = "Polyval_Horner" in
+  doProof name
+     -- satABC $
+     -- (satUnintSBV z3 ["dot"]) $
+     satRME $
   do (ptrT,valT)      <- freshArray "T" 16 Byte Mutable
      (ptrH,valH)      <- freshArray "H" 16 Byte Immutable
 
@@ -111,21 +111,18 @@ prove_Polyval_Horner =
              RCX -> gpUse valSize
              _   -> GPFresh AsBits
 
-     -- Save 10 register; 16 bytes local; RET of call; our Ret
+     -- Save 10 registers; 16 bytes local (2 qwords); RET of call; our Ret
      -- 10 + 2 + 1 + 1
      (r,basicPost) <- setupContext 14 gpRegs (const Nothing)
 
-     return (r,basicPost)
+     let post =
+          do basicPost
+             sH  <- packVec valH
+             sI  <- packVec valBuf
+             sT  <- packVec valT
+             sT' <- packVec =<< readArray Byte ptrT 16
+             assertPost name "Polyval_Horner_post" [ sH, sI, sT, sT' ]
 
-
-
-
-
-
-
-
-
-
-
+     return (r,post)
 
 

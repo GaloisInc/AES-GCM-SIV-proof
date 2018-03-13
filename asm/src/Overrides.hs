@@ -26,9 +26,8 @@ import Lang.Crucible.Solver.Interface
 import Lang.Crucible.Solver.Symbol(userSymbol)
 import Lang.Crucible.Solver.SAWCoreBackend
                   (toSC, sawBackendSharedContext, bindSAWTerm)
-import Lang.Crucible.LLVM.MemModel(doPtrAddOffset, doLoad, coerceAny, ppMem)
+import Lang.Crucible.LLVM.MemModel(doPtrAddOffset)
 import Lang.Crucible.LLVM.MemModel.Pointer
-import Lang.Crucible.LLVM.MemModel.Type(bitvectorType)
 import Data.Macaw.X86.X86Reg
 import Data.Macaw.X86.Symbolic
 import Data.Macaw.X86.ArchTypes(X86_64)

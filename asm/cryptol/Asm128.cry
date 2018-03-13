@@ -1,0 +1,39 @@
+module Asm128 where
+
+import X86
+import AES128
+import AES128_GCM_SIV
+
+// Should match what's in Sizes.hs
+type AAD_Size = 16
+
+GFMUL_post : [256] -> [256] -> [256] -> Bool
+GFMUL_post h res out = dot256 h res == out
+
+dot256 : [256] -> [256] -> [256]
+dot256 (_ # h) (_ # res) = 0 # dot h res
+
+Polyval_Horner_post : [16][8] -> [AAD_Size][8] -> [16][8] -> [16][8] -> Bool
+Polyval_Horner_post h i t t' =
+  polyvalFrom (leLoad h) (leLoadBlocks i) (leLoad t) == leLoad t'
+
+// See `derive_key` in the spec.
+AES_128_ENC_x4_post : [16][8] -> [11 * 16][8] -> [4][128] -> Bool
+AES_128_ENC_x4_post iv keys ct =
+  ct == [ aesWithKeys keys (nonce # i) | i <- [ 0 .. 3 ] ]
+  where
+  nonce : [96]
+  nonce = drop (leLoad iv)
+
+fun : [16][8] -> [11 * 16][8] -> [4][128]
+fun iv keys = [ aesWithKeys keys (nonce # i) | i <- [ 0 .. 3 ] ]
+  where nonce = take`{12} (leLoad iv)
+
+aesWithKeys : [11 * 16][8] -> [128] -> [128]
+aesWithKeys ks pt = aes (k1,kRest,kLast) pt
+  where
+  [k1] # kRest # [kLast] = [ aesStateFromBytes m | m <- split ks ]
+
+leLoadBlocks : {n} (fin n) => [n][8] -> [n /^ 16][128]
+leLoadBlocks bytes = leLoadArray (bytes # zero)
+

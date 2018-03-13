@@ -1,4 +1,4 @@
-{-# Language RecordWildCards #-}
+{-# Language RecordWildCards, DataKinds #-}
 module Utils (module Utils, module SAWScript.X86Spec) where
 
 import System.IO(hFlush,stdout)
@@ -34,7 +34,7 @@ doProof ::
   IO ()
 doProof fun strategy pre =
   do putStrLn (replicate 80 '-')
-     let cry = "../cryptol-specs/Asm128.cry"
+     let cry = "cryptol/Asm128.cry"
      (ctx, gs) <- proof linuxInfo "./verif-src/proof_target"
                                   (setupOverrides cry)
             Fun { funName = fun
@@ -52,7 +52,7 @@ doProof fun strategy pre =
 setupContext ::
   Integer {- ^ Size of stack in QWords -} ->
   (GPReg -> GPSetup) {- ^ Initialization for GP regs (stack auto) -} ->
-  (VecReg -> Maybe (Value AVec)) {- ^ Setup for vector registers -} ->
+  (VecReg -> Maybe (Value (Bits 256))) {- ^ Setup for vector registers -} ->
   Spec Pre (RegAssign, Spec Post ())
 setupContext stackSize setupGP setupVec =
   do setupComplexInstructions
@@ -166,7 +166,7 @@ packVec = packVecAt infer
 
 -- | Allocate a blank stack, assuming no parameters will be passed on the
 -- stack. Returns the value for RSP, the return address.
-setupNoParamStack :: Integer -> Spec Pre (Value APtr, Value AQWord)
+setupNoParamStack :: Integer -> Spec Pre (Value APtr, Value (Bits 64))
 setupNoParamStack size =
   do stack <- allocBytes "stack" Mutable (size .* QWord)
      ret  <- fresh QWord "ret"

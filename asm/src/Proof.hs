@@ -2,28 +2,31 @@
 module Main where
 
 import Data.ByteString(ByteString)
+import Control.Monad(forM_)
 
-import SAWScript.Prover.SBV(satUnintSBV,z3)
+import SAWScript.Prover.SBV(satUnintSBV,z3,cvc4,yices)
 import SAWScript.Prover.RME(satRME)
 import SAWScript.Prover.ABC(satABC)
+import SAWScript.Prover.Exporter
+
 
 import Utils
 import Sizes
 
 main :: IO ()
 main =
-  do -- prove_GFMUL "_GFMUL"
-     -- prove_GFMUL "GFMUL"
+  do prove_GFMUL "_GFMUL"
+     prove_GFMUL "GFMUL"
      prove_Polyval_Horner
-     -- prove_AES_128_ENC_x4
+     prove_AES_128_ENC_x4
 
 
 
 prove_GFMUL :: ByteString -> IO ()
 prove_GFMUL gfMulVer =
   doProof gfMulVer satRME $
-  do valH   <- fresh Vec "H"
-     valRes <- fresh Vec "RES"
+  do valH   <- fresh V256 "H"
+     valRes <- fresh V256 "RES"
 
 
      let gpRegs _ = GPFresh AsBits
@@ -54,15 +57,20 @@ prove_GFMUL gfMulVer =
 
 prove_AES_128_ENC_x4 :: IO ()
 prove_AES_128_ENC_x4 =
-  doProof "AES_128_ENC_x4" undefined $
-  do (noncePtr,nonce) <- freshArray "IV" 16  Byte Immutable
-     (ptPtr,pt)       <- freshArray "PT"  8  QWord Mutable
-     (keyPtr,keys)    <- freshArray "Keys" (16 * 15) Byte Immutable
+  let name = "AES_128_ENC_x4" in
+  doProof name (satUnintSBV z3 [ "aes_round", "aes_final_round" ]) $
+  do
+     -- The nonce is 12 bytes, padded to 16 
+     (noncePtr,nonce) <- freshArray "IV" 16  Byte Immutable
+     forM_ (drop 12 nonce) $ \v -> assume =<< sameVal v =<< literal 0
+
+     ctPtr          <- allocBytes "CT" Mutable (4 .* V128)
+     (keyPtr,keys)  <- freshArray "Keys" (11 * 16) Byte Immutable
 
      let gpRegs r =
            case r of
              RDI -> gpUse noncePtr
-             RSI -> gpUse ptPtr
+             RSI -> gpUse ctPtr
              RDX -> gpUse keyPtr
              _   -> GPFresh AsBits
 
@@ -73,23 +81,20 @@ prove_AES_128_ENC_x4 =
            do basicPost
 
               sIV <- packVec nonce
-              sPT <- packVec pt
-              sCT <- packVec =<< readArray QWord ptPtr 8
+              sCT <- packVec =<< readArray V128 ctPtr 4
               sKs <- packVec keys
-              ok <- saw Bool =<< cryTerm "post" [ sIV, sKs, sPT, sCT ]
-
-              assert ok "Post condition not satisified."
+              assertPost name "AES_128_ENC_x4_post" [ sIV, sKs, sCT ]
 
 
      return (r,post)
-
-
 
 prove_Polyval_Horner :: IO ()
 prove_Polyval_Horner =
   let name = "Polyval_Horner" in
   doProof name
-     (oneOf [ satABC, satRME, satUnintSBV z3 [] ]) $
+    satRME $ -- works for smallish sizes.
+             -- ABC worked in reference proof, but not here. why?
+
   do (ptrT,valT)      <- freshArray "T" 16 Byte Mutable
      (ptrH,valH)      <- freshArray "H" 16 Byte Immutable
 

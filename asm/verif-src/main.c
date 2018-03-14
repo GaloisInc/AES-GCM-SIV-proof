@@ -1,13 +1,19 @@
 #include "GCM_SIV.h"
-#include <stdio.h>
 /* This is just a wrapper, so that we have all funcionts linked in
    a single executable */
+
+// #define DEBUG
+
+#ifdef DEBUG
+#include <stdio.h>
+#endif
 
 int main(int argc, char* argv[]) {
   (void) argc;
   (void) argv;
 
-  uint64_t aad_len = 16;
+#ifdef DEBUG
+  uint64_t aad_len = 18;
   uint64_t pt_len  = 24;
   uint8_t T[16];
   uint8_t H[16];
@@ -25,9 +31,10 @@ int main(int argc, char* argv[]) {
 
   for(int i = 0; i < 16; ++i) {
     printf("%x ", T[i]);
-    printf("\n");
   }
+  printf("\n");
   return 0;
+#endif
 
   AES_GCM_SIV_Encrypt(0,0,0,0,0,0,0,0,0);
   AES_GCM_SIV_Decrypt(0,0,0,0,0,0,0,0,0);

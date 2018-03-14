@@ -9,26 +9,26 @@ import SAWScript.Prover.RME(satRME)
 import SAWScript.Prover.ABC(satABC)
 import SAWScript.Prover.Exporter
 
+import SAWScript.X86Spec.Memory
+
 
 import Utils
 import Sizes
 
 main :: IO ()
 main =
-  do -- prove_GFMUL "_GFMUL"
-     -- prove_GFMUL "GFMUL"
-     -- prove_Polyval_Horner
+  do prove_GFMUL "_GFMUL"
+     prove_GFMUL "GFMUL"
+     prove_Polyval_Horner
      prove_Polyval_Horner_AAD_MSG_LENBLK
-     -- prove_AES_128_ENC_x4
-
+     prove_AES_128_ENC_x4
 
 
 prove_GFMUL :: ByteString -> IO ()
 prove_GFMUL gfMulVer =
-  doProof gfMulVer satRME $
+  doProof gfMulVer strategy $
   do valH   <- fresh V256 "H"
      valRes <- fresh V256 "RES"
-
 
      let gpRegs _ = GPFresh AsBits
          vecRegs r =
@@ -52,6 +52,8 @@ prove_GFMUL gfMulVer =
 
      return (r,post)
 
+  where
+  strategy = satRME
 
 
 
@@ -92,10 +94,7 @@ prove_AES_128_ENC_x4 =
 prove_Polyval_Horner :: IO ()
 prove_Polyval_Horner =
   let name = "Polyval_Horner" in
-  doProof name
-    satRME $ -- works for smallish sizes.
-             -- ABC worked in reference proof, but not here. why?
-
+  doProof name strategy $
   do (ptrT,valT)      <- freshArray "T" 16 Byte Mutable
      (ptrH,valH)      <- freshArray "H" 16 Byte Immutable
 
@@ -128,6 +127,7 @@ prove_Polyval_Horner =
 
      return (r,post)
 
+  where strategy = satUnintSBV yices ["dot"]
 
 
 prove_Polyval_Horner_AAD_MSG_LENBLK :: IO ()
@@ -146,6 +146,8 @@ prove_Polyval_Horner_AAD_MSG_LENBLK =
      valMsgLen       <- literalAt QWord msgSize
 
      (ptrLenBlk, valLenBlk) <- freshArray "LEN_BLK" 2 QWord Immutable
+
+     debug ("AAD Len = " ++ ppVal valAADLen)
 
      let gpRegs r =
            case r of
@@ -177,7 +179,6 @@ prove_Polyval_Horner_AAD_MSG_LENBLK =
 
      return (r, post)
 
-  where
-  strategy = satABC
+  where strategy = satUnintSBV yices ["dot"]
 
 

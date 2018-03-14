@@ -58,7 +58,7 @@ n256 = knownNat
 
 gfmul_override :: Term -> CallHandler
 gfmul_override dot sym (mem,r) =
-  do putStrLn "*** Enter GFMUL override"
+  do putStr ("\n*** Enter GFMUL override... ")
      ymm2 <- freshYMM sym 2
      ymm3 <- freshYMM sym 3
      ymm4 <- freshYMM sym 4
@@ -87,7 +87,7 @@ gfmul_override dot sym (mem,r) =
 
 
      ctx <- sawBackendSharedContext sym
-     sawRes <- scApplyAll ctx dot [ sawH, sawRes0 ]
+     sawRes <- scApplyAll ctx dot [ sawRes0, sawH ]
      res <- llvmPointer_bv sym =<< bindSAWTerm sym (BaseBVRepr n256) sawRes
 
      let r1 = {-updReg X86_IP ip
@@ -100,7 +100,7 @@ gfmul_override dot sym (mem,r) =
               r
 
 
-     putStrLn "*** Exit GFMUL override"
+     putStrLn "Exit"
      return (mem,r1)
 
 

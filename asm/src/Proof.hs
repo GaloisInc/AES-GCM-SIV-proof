@@ -17,11 +17,12 @@ import Sizes
 
 main :: IO ()
 main =
-  do prove_GFMUL "_GFMUL"
-     prove_GFMUL "GFMUL"
-     prove_Polyval_Horner
-     prove_Polyval_Horner_AAD_MSG_LENBLK
-     prove_AES_128_ENC_x4
+  do -- prove_GFMUL "_GFMUL"
+     -- prove_GFMUL "GFMUL"
+     -- prove_Polyval_Horner
+     -- prove_Polyval_Horner_AAD_MSG_LENBLK
+     -- prove_AES_128_ENC_x4
+     prove_AES_KS_ENC_x1
 
 
 prove_GFMUL :: ByteString -> IO ()
@@ -61,7 +62,7 @@ prove_GFMUL gfMulVer =
 prove_AES_128_ENC_x4 :: IO ()
 prove_AES_128_ENC_x4 =
   let name = "AES_128_ENC_x4" in
-  doProof name (satUnintSBV z3 [ "aes_round", "aes_final_round" ]) $
+  doProof name strategy $
   do
      -- The nonce is 12 bytes, padded to 16 
      (noncePtr,nonce) <- freshArray "IV" 16  Byte Immutable
@@ -90,6 +91,7 @@ prove_AES_128_ENC_x4 =
 
 
      return (r,post)
+  where strategy = satUnintSBV z3 [ "aes_round", "aes_final_round" ]
 
 prove_Polyval_Horner :: IO ()
 prove_Polyval_Horner =
@@ -147,8 +149,6 @@ prove_Polyval_Horner_AAD_MSG_LENBLK =
 
      (ptrLenBlk, valLenBlk) <- freshArray "LEN_BLK" 2 QWord Immutable
 
-     debug ("AAD Len = " ++ ppVal valAADLen)
-
      let gpRegs r =
            case r of
              RDI -> gpUse ptrT
@@ -180,5 +180,41 @@ prove_Polyval_Horner_AAD_MSG_LENBLK =
      return (r, post)
 
   where strategy = satUnintSBV yices ["dot"]
+
+
+prove_AES_KS_ENC_x1 :: IO ()
+prove_AES_KS_ENC_x1 =
+  let name = "AES_KS_ENC_x1" in
+  doProof name strategy $
+  do (ptrPT, valPT)     <- freshArray "PT" 16 Byte Immutable
+     ptrCT              <- allocBytes "CT" Mutable (16 .* Byte)
+     valLen             <- literalAt QWord 16
+     (ptrKeys,valKeys)  <- freshArray "Keys" (11 * 16) Byte Mutable
+     (ptrIKey,valIKey)  <- freshArray "IKey" 16 Byte Immutable
+
+     see "ptrPT" ptrPT
+     see "ptrCT" ptrCT
+     see "valLen" valLen
+     see "ptrKeys" ptrKeys
+     see "ptrIKey" ptrIKey
+
+     let gpRegs r =
+           case r of
+             RDI -> gpUse ptrPT
+             RSI -> gpUse ptrCT
+             RDX -> gpUse valLen
+             RCX -> gpUse ptrKeys
+             R8  -> gpUse ptrIKey
+             _   -> GPFresh AsBits
+
+     -- Save 6 registers
+     (_, r, basicPost) <- setupContext 0 6 gpRegs (const Nothing)
+
+     let post =
+          do basicPost
+
+     return (r,post)
+
+  where strategy = satUnintSBV z3 [ "aes_round", "aes_final_round" ]
 
 

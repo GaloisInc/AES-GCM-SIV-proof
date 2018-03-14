@@ -124,12 +124,12 @@ void Polyval_Horner
 
 void Polyval_Horner_AAD_MSG_LENBLK
   ( uint8_t T[16]
-  , uint8_t Record_Hash_Key[16]
+  , const uint8_t Record_Hash_Key[16]
   , const uint8_t *AAD
   , uint64_t L1
   , const uint8_t* PT
   , uint64_t L2
-  , uint64_t len_blk[2]
+  , const uint64_t len_blk[2]
   );
 
 void ENC_MSG_x4

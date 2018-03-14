@@ -37,18 +37,21 @@ import Verifier.SAW.SharedTerm
 
 import SAWScript.X86Spec.Monad(loadCry)
 
+-- XXX: The addressing story here is extermely ad-hoc.
 setupOverrides :: FilePath -> Sym -> IO (Map (Natural,Integer) CallHandler)
 setupOverrides crySpec sym =
   do mp <- loadCry sym (Just crySpec)
      case Map.lookup "dot256" mp of
        Nothing -> fail "Failed to find specification for function `dot256`"
        Just sawDot ->
+          -- why are these in different pointer regions?
           return $ Map.fromList
-             [ declare 0x400d50 (gfmul_override sawDot)
+             [ declare (4,0x400d50) (gfmul_override sawDot)
+             , declare (6,0x400d50) (gfmul_override sawDot)
              ]
 
   where
-  declare addr f = ( (4,addr), f )
+  declare addr f = ( addr, f )
 
 n256 :: NatRepr 256
 n256 = knownNat

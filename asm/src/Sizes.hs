@@ -2,8 +2,11 @@ module Sizes where
 
 import SAWScript.X86Spec
 
+msg_size :: Bytes
+msg_size = 24
+
 aad_size :: Bytes
-aad_size = 16
+aad_size = 16   -- XXX: too small
 
 block_size :: Bytes
 block_size = 16

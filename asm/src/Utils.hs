@@ -50,18 +50,20 @@ doProof fun strategy pre =
 -- Intiializes complex machine instructions, globals,
 -- the stack, and X87 state.
 setupContext ::
-  Integer {- ^ Size of stack in QWords -} ->
+  Integer {- ^ Number of QWords for parameters -} ->
+  Integer {- ^ Number of QWords for locals -} ->
   (GPReg -> GPSetup) {- ^ Initialization for GP regs (stack auto) -} ->
   (VecReg -> Maybe (Value (Bits 256))) {- ^ Setup for vector registers -} ->
-  Spec Pre (RegAssign, Spec Post ())
-setupContext stackSize setupGP setupVec =
+  Spec Pre (Value APtr, RegAssign, Spec Post ())
+  -- ^ Pointer to the last (smallest) parameter, reg assign, and post cond
+setupContext pNum lNum setupGP setupVec =
   do setupComplexInstructions
      setupGlobals
 
      ipFun <- freshRegs
      let valIP = ipFun IP
 
-     (rsp,ret) <- setupNoParamStack stackSize
+     (locals,rsp,ret) <- setupStack pNum lNum
 
      see "RSP" rsp
 
@@ -95,7 +97,7 @@ setupContext stackSize setupGP setupVec =
 
                expectSame "IP" ret =<< getReg IP
 
-     return (r, post)
+     return (locals, r, post)
 
 
 
@@ -164,16 +166,22 @@ packVec = packVecAt infer
 
 
 
--- | Allocate a blank stack, assuming no parameters will be passed on the
--- stack. Returns the value for RSP, the return address.
-setupNoParamStack :: Integer -> Spec Pre (Value APtr, Value (Bits 64))
-setupNoParamStack size =
-  do stack <- allocBytes "stack" Mutable (size .* QWord)
-     ret  <- fresh QWord "ret"
-     p    <- ptrAdd stack ((size - 1) .* QWord)
-     writeMem p ret
 
-     return (p, ret)
+setupStack ::
+  Integer {- ^ Number of QWords for parameters -} ->
+  Integer {- ^ Number of local QWords (not counting return addr) -} ->
+  Spec Pre (Value APtr, Value APtr, Value (Bits 64))
+  -- ^ (pointer to last parameter--least one, value for RSP, return address)
+setupStack paramNum localNum =
+  do let size = paramNum + 1 + localNum
+     stack <- allocBytes "stack" Mutable (size .* QWord)
+     ret  <- fresh QWord "ret"
+     l    <- ptrAdd stack ((size - 1 - paramNum) .* QWord)
+     writeMem l ret
+
+     p    <- ptrAdd l (1 .* QWord) -- ptr to the last parameter
+
+     return (p, l, ret)
 
 
 assertPost :: ByteString -> String -> [Term] -> Spec Post ()

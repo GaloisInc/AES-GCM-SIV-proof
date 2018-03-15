@@ -22,7 +22,8 @@ main =
      -- prove_Polyval_Horner
      -- prove_Polyval_Horner_AAD_MSG_LENBLK
      -- prove_AES_128_ENC_x4
-     prove_AES_KS_ENC_x1
+     -- prove_AES_KS_ENC_x1
+     prove_ENC_MSG_x4
 
      -- prove_test
 
@@ -213,11 +214,6 @@ prove_AES_KS_ENC_x1 =
 
      (ptrIKey,valIKey)  <- freshArray "IKey" 16 Byte Immutable
 
-     see "ptrPT" ptrPT
-     see "ptrCT" ptrCT
-     see "ptrKeys" ptrKeys
-     see "ptrIKey" ptrIKey
-
      let gpRegs r =
            case r of
              RDI -> gpUse ptrPT
@@ -242,5 +238,45 @@ prove_AES_KS_ENC_x1 =
      return (r,post)
 
   where strategy = satABC
+
+
+prove_ENC_MSG_x4 :: IO ()
+prove_ENC_MSG_x4 =
+  let name = "ENC_MSG_x4" in
+  doProof name strategy $
+  do let msgSize = bytesToInteger msg_size
+     (ptrPT, valPT)     <- freshArray "PT" msgSize Byte Immutable
+     valMsgLen          <- literalAt QWord msgSize
+
+     ptrCT              <- allocBytes "CT" Mutable (msgSize .* Byte)
+     (ptrTAG, valTag)   <- freshArray "TAG" 16 Byte Mutable
+     (ptrKeys, valKeys) <- freshArray "Keys" (11 * 16) Byte Immutable
+
+     see "TAG" ptrTAG
+     see "KEYS" ptrKeys
+
+     let gpRegs r = case r of
+                      RDI -> gpUse ptrPT
+                      RSI -> gpUse ptrCT
+                      RDX -> gpUse ptrTAG
+                      RCX -> gpUse ptrKeys
+                      R8  -> gpUse valMsgLen
+                      _   -> GPFresh AsBits
+
+     -- Save 10 register; 16 bytes (2 qwords) of local space.
+     (_, r, basicPost) <- setupContext 0 (10 + 2) gpRegs (const Nothing)
+
+     let post =
+          do basicPost
+             sPT   <- packVec valPT
+             sCT   <- packVec =<< readArray Byte ptrCT msgSize
+             sTAG  <- packVec valTag
+             sTAG' <- packVec =<< readArray Byte ptrCT 16
+             sKeys <- packVec valKeys
+             assertPost name "ENC_MSG_x4_post" [ sKeys, sTAG, sPT, sTAG', sCT ]
+
+     return (r,post)
+  where
+  strategy = satABC
 
 

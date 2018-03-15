@@ -22,8 +22,9 @@ setupGlobals =
                                          , 0x0c0f0e0d, 0x0c0f0e0d ]
      declare "con1"       0x402ba0 DWord [ 1, 1, 1, 1 ]
      declare "con2"       0x402bb0 DWord [ 0x1b,0x1b,0x1b,0x1b ]
-     declare "shuff_mask" 0x402bc0 QWord
-                                   [0x0f0f0f0f0f0f0f0f, 0x0f0f0f0f0f0f0f0f]
+     declare "con3"       0x402bc0 Byte
+                                  [ -1,-1,-1,-1,-1,-1,-1,-1,4,5,6,7,4,5,6,7]
+
      declare "one"        0x402bd0 DWord [ 1, 0, 0, 0 ]
      declare "and_mask"   0x402be0 DWord
                                    [ 0,0xffffffff, 0xffffffff, 0xffffffff ]

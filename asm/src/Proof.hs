@@ -24,6 +24,27 @@ main =
      -- prove_AES_128_ENC_x4
      prove_AES_KS_ENC_x1
 
+     -- prove_test
+
+prove_test :: IO ()
+prove_test =
+  doProof "galois_xxx" strategy $
+  do xmm0 <- saw V256 =<< cryTerm "test_xmm0" []
+     xmm1 <- saw V256 =<< cryTerm "test_xmm1" []
+     let vecRegs r = case r of
+                       YMM0 -> Just xmm0
+                       YMM1 -> Just xmm1
+                       _    -> Nothing
+     (_,r,_basicPost) <- setupContext 0 0 (const (GPFresh AsBits)) vecRegs
+     let post =
+          do v <- toSAW =<< getReg YMM2
+             assertPost "galois_xxx" "test_post" [v]
+
+     return (r,post)
+
+  where
+  strategy = satUnintSBV z3 []
+
 
 prove_GFMUL :: ByteString -> IO ()
 prove_GFMUL gfMulVer =
@@ -188,13 +209,12 @@ prove_AES_KS_ENC_x1 =
   doProof name strategy $
   do (ptrPT, valPT)     <- freshArray "PT" 16 Byte Immutable
      ptrCT              <- allocBytes "CT" Mutable (16 .* Byte)
-     valLen             <- literalAt QWord 16
-     (ptrKeys,valKeys)  <- freshArray "Keys" (11 * 16) Byte Mutable
+     ptrKeys            <- allocBytes "Keys" Mutable (11 .* V128)
+
      (ptrIKey,valIKey)  <- freshArray "IKey" 16 Byte Immutable
 
      see "ptrPT" ptrPT
      see "ptrCT" ptrCT
-     see "valLen" valLen
      see "ptrKeys" ptrKeys
      see "ptrIKey" ptrIKey
 
@@ -202,7 +222,7 @@ prove_AES_KS_ENC_x1 =
            case r of
              RDI -> gpUse ptrPT
              RSI -> gpUse ptrCT
-             RDX -> gpUse valLen
+             -- RDX: unused parameter
              RCX -> gpUse ptrKeys
              R8  -> gpUse ptrIKey
              _   -> GPFresh AsBits
@@ -212,9 +232,15 @@ prove_AES_KS_ENC_x1 =
 
      let post =
           do basicPost
+             sIKey  <- packVec valIKey
+             sPT    <- packVec valPT
+             sCT    <- packVec =<< readArray Byte ptrCT 16
+             sKeys  <- packVec =<< readArray Byte ptrKeys (11 * 16)
+             assertPost name "AES_KS_ENC_x1_post1" [ sIKey, sKeys ]
+             assertPost name "AES_KS_ENC_x1_post2" [ sKeys, sPT, sCT ]
 
      return (r,post)
 
-  where strategy = satUnintSBV z3 [ "aes_round", "aes_final_round" ]
+  where strategy = satABC
 
 

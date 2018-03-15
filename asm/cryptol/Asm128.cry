@@ -30,17 +30,46 @@ Polyval_Horner_AAD_MSG_post h aad pt lblk t t' =
 
 // See `derive_key` in the spec.
 AES_128_ENC_x4_post : [16][8] -> [11 * 16][8] -> [4][128] -> Bool
-AES_128_ENC_x4_post iv keys ct =
-  ct == [ aesWithKeys keys (nonce # i) | i <- [ 0 .. 3 ] ]
+AES_128_ENC_x4_post iv' keys ct =
+  ct == [ aesWithKeys keys (iv # i) | i <- [ 0 .. 3 ] ]
   where
-  nonce : [96]
-  nonce = drop (leLoad iv)
+  _ # (iv : [96]) = leLoad iv'
+
+/* Encrypt the pt with the given key, expanding it as you go.
+The result it the encrypted text and the expanded key */
+AES_KS_ENC_x1_post1 : [16][8]  -> [11 * 16][8] -> Bool
+AES_KS_ENC_x1_post1 ikey keys =
+  aesKeyToBytes (ExpandKey (leLoad (reverse ikey))) == keys
+  // NOTE: It would appear the key expansion in our spec and the
+  // one in the code are reversed.
+
+AES_KS_ENC_x1_post2 : [11 * 16][8] -> [16][8] -> [16][8] -> Bool
+AES_KS_ENC_x1_post2 keys pt ct =
+  aesWithKeys keys (leLoad pt) == leLoad ct
+
+
+
+vpsllq : [128] -> [128] -> [128]
+vpsllq amt x = join [ w << amt | w <- split`{each=64} x ]
+
+vpshufb : [128] -> [128] -> [128]
+vpshufb i x = join [ sel ix | ix <- split`{each=8} i ]
+  where src  = split`{each=8} x
+        sel ix = if ix @ 0 then 0 else src ! (drop`{4} ix)
 
 aesWithKeys : [11 * 16][8] -> [128] -> [128]
-aesWithKeys ks pt = aes (k1,kRest,kLast) pt
-  where
-  [k1] # kRest # [kLast] = [ aesStateFromBytes m | m <- split ks ]
+aesWithKeys ks pt = aes (aesKeysFromBytes ks) pt
+
+aesKeysFromBytes : [11 * 16][8] -> KeySchedule
+aesKeysFromBytes ks = (k1,kRest,kLast)
+  where [k1] # kRest # [kLast] = [ aesStateFromBytes m | m <- split ks ]
+
+aesKeyToBytes : KeySchedule -> [11 * 16][8]
+aesKeyToBytes (k1,kRest,kLast) =
+  aesStateToBytes k1 # join [ aesStateToBytes x | x <- kRest ] # aesStateToBytes kLast
 
 leLoadBlocks : {n} (fin n) => [n][8] -> [n /^ 16][128]
 leLoadBlocks bytes = leLoadArray (bytes # zero)
+
+
 

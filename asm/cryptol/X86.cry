@@ -32,6 +32,9 @@ leLoad bytes = join (reverse bytes)
 leLoadArray : {l,w} (fin l,fin w) => [l * w][8] -> [l][w * 8]
 leLoadArray bytes = [ leLoad mem | mem <- split bytes ]
 
+leStoreArray : {l,w} (fin l,fin w) => [l][w * 8] -> [l * w][8]
+leStoreArray arr = join [ leStore a | a <- arr ]
+
 aesStateFromBytes : [16][8] -> State
 aesStateFromBytes xs = transpose (split xs)
 

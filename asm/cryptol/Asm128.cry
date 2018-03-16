@@ -48,7 +48,18 @@ AES_KS_ENC_x1_post2 keys pt ct =
   aesWithKeys keys (leLoad pt) == leLoad ct
 
 
+ENC_MSG_x4_post :
+  [11 * 16][8] -> [16][8] -> [MSG_Size][8] -> [MSG_Size][8] -> Bool
+ENC_MSG_x4_post keys tag pt ct =
+  leStoreBlocks (counter_mode K2 (0b1 # tUpper, tLower) M) == ct
+  where
+  K2 = aesKeysFromBytes keys
+  M  = leLoadBlocks pt
+  _ # tUpper # tLower = leLoad tag
 
+
+// -----------------------------------------------------------------------------
+// -- Debug
 vpsllq : [128] -> [128] -> [128]
 vpsllq amt x = join [ w << amt | w <- split`{each=64} x ]
 
@@ -56,6 +67,9 @@ vpshufb : [128] -> [128] -> [128]
 vpshufb i x = join [ sel ix | ix <- split`{each=8} i ]
   where src  = split`{each=8} x
         sel ix = if ix @ 0 then 0 else src ! (drop`{4} ix)
+
+
+// -----------------------------------------------------------------------------
 
 aesWithKeys : [11 * 16][8] -> [128] -> [128]
 aesWithKeys ks pt = aes (aesKeysFromBytes ks) pt
@@ -71,5 +85,6 @@ aesKeyToBytes (k1,kRest,kLast) =
 leLoadBlocks : {n} (fin n) => [n][8] -> [n /^ 16][128]
 leLoadBlocks bytes = leLoadArray (bytes # zero)
 
-
+leStoreBlocks : {n} (fin n) => [n /^ 16][128] -> [n][8]
+leStoreBlocks arr = take (leStoreArray arr)
 

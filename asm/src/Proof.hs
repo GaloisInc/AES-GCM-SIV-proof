@@ -249,7 +249,7 @@ prove_ENC_MSG_x4 =
      valMsgLen          <- literalAt QWord msgSize
 
      ptrCT              <- allocBytes "CT" Mutable (msgSize .* Byte)
-     (ptrTAG, valTag)   <- freshArray "TAG" 16 Byte Mutable
+     (ptrTAG, valTag)   <- freshArray "TAG" 16 Byte Immutable
      (ptrKeys, valKeys) <- freshArray "Keys" (11 * 16) Byte Immutable
 
      see "TAG" ptrTAG
@@ -271,12 +271,11 @@ prove_ENC_MSG_x4 =
              sPT   <- packVec valPT
              sCT   <- packVec =<< readArray Byte ptrCT msgSize
              sTAG  <- packVec valTag
-             sTAG' <- packVec =<< readArray Byte ptrCT 16
              sKeys <- packVec valKeys
-             assertPost name "ENC_MSG_x4_post" [ sKeys, sTAG, sPT, sTAG', sCT ]
+             assertPost name "ENC_MSG_x4_post" [ sKeys, sTAG, sPT, sCT ]
 
      return (r,post)
   where
-  strategy = satABC
+  strategy = satUnintSBV z3 [ "aes_round", "aes_final_round" ]
 
 

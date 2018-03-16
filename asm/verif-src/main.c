@@ -13,24 +13,21 @@ int main(int argc, char* argv[]) {
   (void) argv;
 
 #ifdef DEBUG
-  uint64_t aad_len = 18;
-  uint64_t pt_len  = 24;
-  uint8_t T[16];
-  uint8_t H[16];
-  uint8_t AAD[aad_len];
+  uint64_t pt_len = 24;
   uint8_t PT[pt_len];
-  uint64_t LENBLK[2];
+  uint8_t CT[pt_len];
+  uint8_t TAG[16];
+  uint8_t KS[11 * 16];
 
-  for (int i = 0; i < 16; ++i) T[i] = 0xFF;
-  for (int i = 0; i < 16; ++i) H[i] = 0xFF;
-  for (uint64_t i = 0; i < aad_len; ++i) AAD[i] = 0xFF;
-  for (uint64_t i = 0; i < pt_len ; ++i) PT[i] = 0xFF;
-  for (int i = 0; i < 2; ++i) LENBLK[i] = 0xFFFFFFFFFFFFFFFF;
+  for (uint64_t i = 0; i < pt_len; ++i) PT[i] = 0;
+  for (uint64_t i = 0; i < pt_len; ++i) CT[i] = 0;
+  for (int i = 0; i < 16; ++i) TAG[i] = 0;
+  for (int i = 0; i < 11 * 16; ++i) KS[i] = 0;
 
-  Polyval_Horner_AAD_MSG_LENBLK(T,H,AAD,aad_len,PT,pt_len,LENBLK);
+  ENC_MSG_x4(PT,CT,TAG,KS,pt_len);
 
-  for(int i = 0; i < 16; ++i) {
-    printf("%x ", T[i]);
+  for(uint64_t i = 0; i < pt_len; ++i) {
+    printf("%x ", CT[i]);
   }
   printf("\n");
   return 0;

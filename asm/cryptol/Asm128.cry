@@ -48,14 +48,17 @@ AES_KS_ENC_x1_post2 keys pt ct =
   aesWithKeys keys (leLoad pt) == leLoad ct
 
 
-ENC_MSG_x4_post :
+ENC_MSG_post :
   [11 * 16][8] -> [16][8] -> [MSG_Size][8] -> [MSG_Size][8] -> Bool
-ENC_MSG_x4_post keys tag pt ct =
+ENC_MSG_post keys tag pt ct =
   leStoreBlocks (counter_mode K2 (0b1 # tUpper, tLower) M) == ct
   where
   K2 = aesKeysFromBytes keys
   M  = leLoadBlocks pt
   _ # tUpper # tLower = leLoad tag
+
+
+
 
 
 // -----------------------------------------------------------------------------

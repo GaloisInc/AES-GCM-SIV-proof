@@ -26,6 +26,20 @@ setupGlobals =
      declare "two"        0x4022a0 QWord [2,0]
      declare "three"      0x4022b0 QWord [3,0]
      declare "four"       0x4022c0 QWord [4,0]
+
+     declare "OR_MASK"    0x402620 DWord
+                            [ 0x00000000,0x00000000,0x00000000,0x80000000 ]
+     declare "one"        0x402630 QWord [1,0]
+     declare "two"        0x402640 QWord [2,0]
+     declare "three"      0x402650 QWord [3,0]
+     declare "four"       0x402660 QWord [4,0]
+     declare "five"       0x402670 QWord [5,0]
+     declare "six"        0x402680 QWord [6,0]
+     declare "seven"      0x402690 QWord [7,0]
+     declare "eight"      0x4026a0 QWord [8,0]
+
+
+
      declare "mask"       0x402b90 DWord [ 0x0c0f0e0d, 0x0c0f0e0d
                                          , 0x0c0f0e0d, 0x0c0f0e0d ]
      declare "con1"       0x402ba0 DWord [ 1, 1, 1, 1 ]

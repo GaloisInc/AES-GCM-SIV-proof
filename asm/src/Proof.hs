@@ -17,13 +17,14 @@ import Sizes
 
 main :: IO ()
 main =
-  do prove_GFMUL "_GFMUL"
-     prove_GFMUL "GFMUL"
-     prove_Polyval_Horner
-     prove_Polyval_Horner_AAD_MSG_LENBLK
-     prove_AES_128_ENC_x4
-     prove_AES_KS_ENC_x1
-     prove_ENC_MSG_x4
+  do -- prove_GFMUL "_GFMUL"
+     -- prove_GFMUL "GFMUL"
+     -- prove_Polyval_Horner
+     -- prove_Polyval_Horner_AAD_MSG_LENBLK
+     -- prove_AES_128_ENC_x4
+     -- prove_AES_KS_ENC_x1
+     -- prove_ENC_MSG_x4
+     prove_ENC_MSG_x8
 
      -- prove_test
 
@@ -272,7 +273,50 @@ prove_ENC_MSG_x4 =
              sCT   <- packVec =<< readArray Byte ptrCT msgSize
              sTAG  <- packVec valTag
              sKeys <- packVec valKeys
-             assertPost name "ENC_MSG_x4_post" [ sKeys, sTAG, sPT, sCT ]
+             assertPost name "ENC_MSG_post" [ sKeys, sTAG, sPT, sCT ]
+
+     return (r,post)
+  where
+  strategy = satUnintSBV z3 [ "aes_round", "aes_final_round" ]
+
+
+prove_ENC_MSG_x8 :: IO ()
+prove_ENC_MSG_x8 =
+  let name = "ENC_MSG_x8" in
+  doProof name strategy $
+  do let msgSize = bytesToInteger msg_size
+     (ptrPT, valPT)     <- freshArray "PT" msgSize Byte Immutable
+     valMsgLen          <- literalAt QWord msgSize
+
+     ptrCT              <- allocBytes "CT" Mutable (msgSize .* Byte)
+     (ptrTAG, valTag)   <- freshArray "TAG" 16 Byte Immutable
+     (ptrKeys, valKeys) <- freshArray "Keys" (11 * 16) Byte Immutable
+
+     see "TAG" ptrTAG
+     see "KEYS" ptrKeys
+
+     let gpRegs r = case r of
+                      RDI -> gpUse ptrPT
+                      RSI -> gpUse ptrCT
+                      RDX -> gpUse ptrTAG
+                      RCX -> gpUse ptrKeys
+                      R8  -> gpUse valMsgLen
+                      _   -> GPFresh AsBits
+
+     -- Save 12 register;
+     -- 128 bytes (16 qwords) of local space;
+     -- 63 bytes for alignment (~ 8 words)
+     -- 16 bytes (2 qwords)
+     (_, r, basicPost) <- setupContext 0 (12 + 16 + 8 + 2)
+                                                  gpRegs (const Nothing)
+
+     let post =
+          do basicPost
+             sPT   <- packVec valPT
+             sCT   <- packVec =<< readArray Byte ptrCT msgSize
+             sTAG  <- packVec valTag
+             sKeys <- packVec valKeys
+             assertPost name "ENC_MSG_post" [ sKeys, sTAG, sPT, sCT ]
 
      return (r,post)
   where

@@ -17,12 +17,12 @@ import Sizes
 
 main :: IO ()
 main =
-  do -- prove_GFMUL "_GFMUL"
-     -- prove_GFMUL "GFMUL"
-     -- prove_Polyval_Horner
-     -- prove_Polyval_Horner_AAD_MSG_LENBLK
-     -- prove_AES_128_ENC_x4
-     -- prove_AES_KS_ENC_x1
+  do prove_GFMUL "_GFMUL"
+     prove_GFMUL "GFMUL"
+     prove_Polyval_Horner
+     prove_Polyval_Horner_AAD_MSG_LENBLK
+     prove_AES_128_ENC_x4
+     prove_AES_KS_ENC_x1
      prove_ENC_MSG_x4
 
      -- prove_test

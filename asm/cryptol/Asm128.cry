@@ -6,7 +6,7 @@ import AES128_GCM_SIV
 
 // Should match what's in Sizes.hs
 type AAD_Size = 36
-type MSG_Size = 24
+type MSG_Size = 160
 
 GFMUL_post : [256] -> [256] -> [256] -> Bool
 GFMUL_post h res out = dot256 res h == out

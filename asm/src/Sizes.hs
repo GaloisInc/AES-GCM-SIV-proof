@@ -6,5 +6,5 @@ aad_size :: Bytes
 aad_size = 36
 
 msg_size :: Bytes
-msg_size = 24
+msg_size = 160
 

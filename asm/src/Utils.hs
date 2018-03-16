@@ -5,6 +5,8 @@ import System.IO(hFlush,stdout)
 import Data.ByteString(ByteString)
 import Control.Exception(catch)
 import Control.Concurrent(forkIO,newEmptyMVar,takeMVar,putMVar,killThread)
+import System.Console.ANSI
+
 
 import SAWScript.X86
 import SAWScript.X86Spec
@@ -118,18 +120,26 @@ solveGoal :: Prover -> SharedContext -> Goal -> IO ()
 solveGoal prover ctx g =
   do term <- gGoal ctx g
      putStrLn "Proving goal"
-     putStrLn ("  Source: " ++ show (gLoc g))
-     putStrLn ("  Reason: " ++ ppReason (gMessage g))
+     putStrLn ("  Source:   " ++ show (gLoc g))
+     putStrLn ("  Avoiding: " ++ ppReason (gMessage g))
      putStr "  Working... "
      hFlush stdout
      writeFile "GG.hs" (scPrettyTerm defaultPPOpts term)
      (mb, stats) <- prover ctx Prove term
      putStrLn (ppStats stats)
      case mb of
-       Nothing -> putStrLn "  Success!"
-       Just a  -> do putStrLn "  Proof failed, counter-example:"
+       Nothing -> say Green "  Success!\n"
+       Just a  -> do say Red "  Proof failed"
+                     putStrLn ", counter-example:"
                      let pp (x,y) = putStrLn ("    " ++ x ++ " = " ++ show y)
                      mapM_ pp a
+  where
+  say c x =
+    do setSGR [SetConsoleIntensity BoldIntensity, SetColor Foreground Vivid c]
+       putStr x
+       setSGR [Reset]
+
+
 
 ppReason :: Show a => Maybe a -> String
 ppReason x =
@@ -187,7 +197,7 @@ setupStack paramNum localNum =
 assertPost :: ByteString -> String -> [Term] -> Spec Post ()
 assertPost fun cryName args =
   do ok <- saw Bool =<< cryTerm cryName args
-     assert ok ("Post condition for " ++ show fun)
+     assert ok ("Failure of post condition for " ++ show fun)
 
 oneOf :: [ Prover ] -> Prover
 oneOf ps sc mode term =

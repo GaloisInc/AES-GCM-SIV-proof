@@ -17,13 +17,13 @@ import Sizes
 
 main :: IO ()
 main =
-  do -- prove_GFMUL "_GFMUL"
-     -- prove_GFMUL "GFMUL"
-     -- prove_Polyval_Horner
-     -- prove_Polyval_Horner_AAD_MSG_LENBLK
-     -- prove_AES_128_ENC_x4
-     -- prove_AES_KS_ENC_x1
-     -- prove_ENC_MSG_x4
+  do prove_GFMUL "_GFMUL"
+     prove_GFMUL "GFMUL"
+     prove_Polyval_Horner
+     prove_Polyval_Horner_AAD_MSG_LENBLK
+     prove_AES_128_ENC_x4
+     prove_AES_KS_ENC_x1
+     prove_ENC_MSG_x4
      prove_ENC_MSG_x8
 
      -- prove_test
@@ -127,10 +127,6 @@ prove_Polyval_Horner =
      (ptrBuf,valBuf)  <- freshArray "buf" aadSize Byte Immutable
      valSize          <- literalAt QWord aadSize
 
-     see "T" ptrT
-     see "H" ptrH
-     see "Buf" ptrBuf
-
      let gpRegs r =
            case r of
              RDI -> gpUse ptrT
@@ -167,6 +163,8 @@ prove_Polyval_Horner_AAD_MSG_LENBLK =
      valAADLen       <- literalAt QWord aadSize
 
      let msgSize      = bytesToInteger msg_size
+     debug ("(Message size = " ++ show msgSize ++ " bytes.)")
+
      (ptrPT, valPT)  <- freshArray "PT" msgSize Byte Immutable
      valMsgLen       <- literalAt QWord msgSize
 
@@ -246,15 +244,14 @@ prove_ENC_MSG_x4 =
   let name = "ENC_MSG_x4" in
   doProof name strategy $
   do let msgSize = bytesToInteger msg_size
+     debug ("(Message size = " ++ show msgSize ++ " bytes.)")
+
      (ptrPT, valPT)     <- freshArray "PT" msgSize Byte Immutable
      valMsgLen          <- literalAt QWord msgSize
 
      ptrCT              <- allocBytes "CT" Mutable (msgSize .* Byte)
      (ptrTAG, valTag)   <- freshArray "TAG" 16 Byte Immutable
      (ptrKeys, valKeys) <- freshArray "Keys" (11 * 16) Byte Immutable
-
-     see "TAG" ptrTAG
-     see "KEYS" ptrKeys
 
      let gpRegs r = case r of
                       RDI -> gpUse ptrPT
@@ -285,15 +282,14 @@ prove_ENC_MSG_x8 =
   let name = "ENC_MSG_x8" in
   doProof name strategy $
   do let msgSize = bytesToInteger msg_size
+     debug ("(Message size = " ++ show msgSize ++ " bytes.)")
+
      (ptrPT, valPT)     <- freshArray "PT" msgSize Byte Immutable
      valMsgLen          <- literalAt QWord msgSize
 
      ptrCT              <- allocBytes "CT" Mutable (msgSize .* Byte)
      (ptrTAG, valTag)   <- freshArray "TAG" 16 Byte Immutable
      (ptrKeys, valKeys) <- freshArray "Keys" (11 * 16) Byte Immutable
-
-     see "TAG" ptrTAG
-     see "KEYS" ptrKeys
 
      let gpRegs r = case r of
                       RDI -> gpUse ptrPT
@@ -307,6 +303,8 @@ prove_ENC_MSG_x8 =
      -- 128 bytes (16 qwords) of local space;
      -- 63 bytes for alignment (~ 8 words)
      -- 16 bytes (2 qwords)
+     -- XXX:  SOMEHOW, we can verify this with only 7 instead of 8 words
+     -- for the alignment.  This does not seem right. INVESTIGATE.
      (_, r, basicPost) <- setupContext 0 (12 + 16 + 8 + 2)
                                                   gpRegs (const Nothing)
 

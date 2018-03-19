@@ -17,7 +17,6 @@ import qualified Data.Map as Map
 
 import Data.Parameterized.Context (Assignment)
 
-import SAWScript.X86(CallHandler,Sym)
 
 import Flexdis86.Register(ymmReg)
 import Lang.Crucible.Types
@@ -35,20 +34,20 @@ import Data.Macaw.Symbolic.PersistentState
 import Data.Macaw.Symbolic.CrucGen
 import Verifier.SAW.SharedTerm
 
-import SAWScript.X86Spec.Monad(loadCry)
+import Verifier.SAW.CryptolEnv(CryptolEnv(eTermEnv))
+
+import SAWScript.X86(CallHandler,Sym)
+import SAWScript.X86Spec.Monad(lookupCry)
 
 -- XXX: The addressing story here is extermely ad-hoc.
-setupOverrides :: FilePath -> Sym -> IO (Map (Natural,Integer) CallHandler)
-setupOverrides crySpec sym =
-  do mp <- loadCry sym (Just crySpec)
-     case Map.lookup "dot256" mp of
-       Nothing -> fail "Failed to find specification for function `dot256`"
-       Just sawDot ->
-          -- why are these in different pointer regions?
-          return $ Map.fromList
-             [ declare (4,0x400d50) (gfmul_override sawDot)
-             , declare (6,0x400d50) (gfmul_override sawDot)
-             ]
+setupOverrides :: Sym -> CryptolEnv -> IO (Map (Natural,Integer) CallHandler)
+setupOverrides _sym cenv =
+  do sawDot <- lookupCry "dot256" (eTermEnv cenv)
+     -- why are these in different pointer regions?
+     return $ Map.fromList
+       [ declare (4,0x400d50) (gfmul_override sawDot)
+       , declare (6,0x400d50) (gfmul_override sawDot)
+       ]
 
   where
   declare addr f = ( addr, f )

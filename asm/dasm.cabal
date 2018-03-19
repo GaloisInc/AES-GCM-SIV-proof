@@ -21,6 +21,7 @@ executable Proof
                        parameterized-utils, containers,
                        macaw-x86, macaw-x86-symbolic, crucible, crucible-llvm,
                        macaw-symbolic, flexdis86, crucible-saw,
+                       cryptol-verifier,
                        ansi-terminal
 
   ghc-options:         -Wall -threaded

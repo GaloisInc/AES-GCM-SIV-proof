@@ -36,14 +36,11 @@ doProof ::
   IO ()
 doProof fun strategy pre =
   do putStrLn (replicate 80 '-')
-     let cry = "cryptol/Asm128.cry"
-     (ctx, gs) <- proof linuxInfo "./verif-src/proof_target"
-                                  (setupOverrides cry)
-            Fun { funName = fun
-                , funSpec = FunSpec
-                    { spec     = pre
-                    , cryDecls = Just cry
-                    } }
+     let elf = "./verif-src/proof_target"
+         cry = Just "cryptol/Asm128.cry"
+
+     (ctx, gs) <- proof linuxInfo elf cry setupOverrides
+                    Fun { funName = fun, funSpec = pre }
      mapM_ (solveGoal strategy ctx) gs
   `catch` \(X86Error e) -> putStrLn e
 

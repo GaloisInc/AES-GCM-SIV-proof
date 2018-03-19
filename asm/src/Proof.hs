@@ -13,7 +13,6 @@ import SAWScript.X86Spec.Memory
 
 
 import Utils
-import Sizes
 
 main :: IO ()
 main =
@@ -123,7 +122,7 @@ prove_Polyval_Horner =
   do (ptrT,valT)      <- freshArray "T" 16 Byte Mutable
      (ptrH,valH)      <- freshArray "H" 16 Byte Immutable
 
-     let aadSize      = bytesToInteger aad_size
+     aadSize          <- cryConst "AAD_Size"
      (ptrBuf,valBuf)  <- freshArray "buf" aadSize Byte Immutable
      valSize          <- literalAt QWord aadSize
 
@@ -158,11 +157,11 @@ prove_Polyval_Horner_AAD_MSG_LENBLK =
   do (ptrT, valT)    <- freshArray "T" 16 Byte Mutable
      (ptrH, valH)    <- freshArray "H" 16 Byte Immutable
 
-     let aadSize      = bytesToInteger aad_size
+     aadSize <- cryConst "AAD_Size"
      (ptrAAD,valAAD) <- freshArray "AAD" aadSize Byte Immutable
      valAADLen       <- literalAt QWord aadSize
 
-     let msgSize      = bytesToInteger msg_size
+     msgSize <- cryConst "MSG_Size"
      debug ("(Message size = " ++ show msgSize ++ " bytes.)")
 
      (ptrPT, valPT)  <- freshArray "PT" msgSize Byte Immutable
@@ -243,7 +242,7 @@ prove_ENC_MSG_x4 :: IO ()
 prove_ENC_MSG_x4 =
   let name = "ENC_MSG_x4" in
   doProof name strategy $
-  do let msgSize = bytesToInteger msg_size
+  do msgSize <- cryConst "MSG_Size"
      debug ("(Message size = " ++ show msgSize ++ " bytes.)")
 
      (ptrPT, valPT)     <- freshArray "PT" msgSize Byte Immutable
@@ -281,7 +280,7 @@ prove_ENC_MSG_x8 :: IO ()
 prove_ENC_MSG_x8 =
   let name = "ENC_MSG_x8" in
   doProof name strategy $
-  do let msgSize = bytesToInteger msg_size
+  do msgSize <- cryConst "MSG_Size"
      debug ("(Message size = " ++ show msgSize ++ " bytes.)")
 
      (ptrPT, valPT)     <- freshArray "PT" msgSize Byte Immutable

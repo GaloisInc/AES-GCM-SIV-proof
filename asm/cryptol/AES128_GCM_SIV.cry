@@ -92,6 +92,13 @@ mult x y = pmod (pmult x y) irred
   where
   irred = <| 1 + x^^121 + x^^126 + x^^127 + x^^128 |>
 
+INIT_Htable : {n} (fin n, n>=2) => [128] -> [n][128]
+INIT_Htable H = hs
+  where
+  hs = [H] # [ dot hn H
+                | hn <- hs
+                | (j : [width n]) <- [0..n-2]]
+
 // -----------------------------------------------------------------------------
 
 blockify : {n} (fin n) => [n] -> [n /^ 128][128]

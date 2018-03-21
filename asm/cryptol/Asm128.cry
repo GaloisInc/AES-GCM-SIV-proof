@@ -28,6 +28,11 @@ Polyval_Horner_AAD_MSG_post h aad pt lblk t t' =
        # leLoadBlocks pt
        # leLoadBlocks [ b | qword <- lblk, b <- leStore qword ]
 
+INIT_Htable_post :
+  [16][8] -> [128][8] -> Bool
+INIT_Htable_post H result =
+  INIT_Htable (leLoad H) == (leLoadArray result)
+
 // See `derive_key` in the spec.
 AES_128_ENC_x4_post : [16][8] -> [11 * 16][8] -> [4][128] -> Bool
 AES_128_ENC_x4_post iv' keys ct =

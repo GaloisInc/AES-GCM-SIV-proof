@@ -40,7 +40,7 @@ doProof fun strategy pre =
          cry = Just "cryptol/Asm128.cry"
 
      (ctx, gs) <- proof linuxInfo elf cry setupOverrides
-                    Fun { funName = fun, funSpec = pre }
+                    Fun { funName = fun, funSpec = OldStyle pre }
      mapM_ (solveGoal strategy ctx) gs
   `catch` \(X86Error e) -> putStrLn e
 

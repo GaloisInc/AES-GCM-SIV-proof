@@ -16,16 +16,38 @@ import Utils
 
 main :: IO ()
 main =
-  do prove_GFMUL "_GFMUL"
-     prove_GFMUL "GFMUL"
-     prove_Polyval_Horner
-     prove_Polyval_Horner_AAD_MSG_LENBLK
-     prove_AES_128_ENC_x4
-     prove_AES_KS_ENC_x1
-     prove_ENC_MSG_x4
-     prove_ENC_MSG_x8
+  do
+    prove_GFMUL "GFMUL"
+    prove_INIT_Htable
+    --prove_GFMUL "_GFMUL"
+
+     --prove_Polyval_Horner
+     --prove_Polyval_Horner_AAD_MSG_LENBLK
+     --prove_AES_128_ENC_x4
+     --prove_AES_KS_ENC_x1
+     --prove_ENC_MSG_x4
+     --prove_ENC_MSG_x8
 
      -- prove_test
+
+
+prove_INIT_Htable :: IO()
+prove_INIT_Htable =
+  let name = "INIT_Htable" in
+  doProof name strategy $
+  do
+    (htblPtr,htbl) <- freshArray "Htbl" (16*8) Byte Mutable
+    (hPtr,h) <- freshArray "H" 8  Byte Immutable
+    let gpRegs r = case r of
+                    RDI -> gpUse htblPtr
+                    RSI -> gpUse hPtr
+                    _   -> GPFresh AsBits
+
+    (_, r, basicPost) <- setupContext 0 0 gpRegs (const Nothing)
+
+    return (r, basicPost)
+  where
+  strategy = satUnintSBV z3 []
 
 prove_test :: IO ()
 prove_test =
@@ -86,7 +108,7 @@ prove_AES_128_ENC_x4 =
   let name = "AES_128_ENC_x4" in
   doProof name strategy $
   do
-     -- The nonce is 12 bytes, padded to 16 
+     -- The nonce is 12 bytes, padded to 16
      (noncePtr,nonce) <- freshArray "IV" 16  Byte Immutable
      forM_ (drop 12 nonce) $ \v -> assume =<< sameVal v =<< literal 0
 

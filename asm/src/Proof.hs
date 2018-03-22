@@ -82,7 +82,15 @@ prove_Polyval_Htable =
 
 -- Save 12 registers; 16 bytes local (2 qwords); RET for call
     (_,r,basicPost) <- setupContext 0 (12 + 2) gpRegs (const Nothing)
-    return (r, basicPost)
+
+    let post =
+      do basicPost
+         sI  <- packVec valBuf
+         sT' <- packVec =<< readArray Byte ptrT 16
+         sTbl <- packVec htable
+         assertPost name "Polyval_HTable_post" [ sI, sTbl, sT' ]
+
+  return (r,basicPost)
   where
     strategy = satUnintSBV z3 []
 

@@ -99,6 +99,19 @@ INIT_Htable H = hs
                 | hn <- hs
                 | (j : [width n]) <- [0..n-2]]
 
+polyval_Htable : {n} (fin n, n>=2) => [128] -> [n][128] -> [128]
+polyval_Htable H X = polyval_Htable' X htable
+  where
+    htable = INIT_Htable`{n} H
+
+polyval_Htable':
+  {n} (fin n, n>=2) => [n][128] -> [n][128] -> [128]
+polyval_Htable' X htable = sums ! 0
+  where
+    sums = [zero] # [ (dot (X@i) (htable!i)) ^ sum
+                    | sum <- sums
+                    | (i : [width n]) <- [0..n-1] ]
+
 // -----------------------------------------------------------------------------
 
 blockify : {n} (fin n) => [n] -> [n /^ 128][128]

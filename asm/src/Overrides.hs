@@ -47,6 +47,7 @@ setupOverrides _sym cenv =
      return $ Map.fromList
        [ declare (4,0x400d50) (gfmul_override sawDot)
        , declare (6,0x400d50) (gfmul_override sawDot)
+       , declare (3, 0x401734) (gfmul_override sawDot)
        ]
 
   where

@@ -17,8 +17,9 @@ import Utils
 main :: IO ()
 main =
   do
-    prove_GFMUL "GFMUL"
-    prove_INIT_Htable
+    --prove_GFMUL "GFMUL"
+    --prove_INIT_Htable
+    prove_Polyval_Htable
     --prove_GFMUL "_GFMUL"
 
      --prove_Polyval_Horner
@@ -37,7 +38,8 @@ prove_INIT_Htable =
   doProof name strategy $
   do
     (htblPtr,htbl) <- freshArray "Htbl" (16*8) Byte Mutable
-    (hPtr,h) <- freshArray "H" 8  Byte Immutable
+    (hPtr,h) <- freshArray "H" 16  Byte Immutable
+
     let gpRegs r = case r of
                     RDI -> gpUse htblPtr
                     RSI -> gpUse hPtr
@@ -45,9 +47,47 @@ prove_INIT_Htable =
 
     (_, r, basicPost) <- setupContext 0 0 gpRegs (const Nothing)
 
+    let post =
+          do  basicPost
+              sawRes <- packVec =<< readArray Byte htblPtr 128
+              sawH <- packVec h
+              assertPost name "INIT_Htable_post" [ sawH, sawRes ]
+
+    return (r, post)
+  where
+  strategy = satUnintSBV z3 ["dot"]
+
+
+prove_Polyval_Htable :: IO()
+prove_Polyval_Htable =
+  let name = "Polyval_Htable" in
+  doProof name strategy $
+  do
+    (ptrHtable,htable) <- freshArray "Htbl" (16*8) Byte Mutable
+    see "Htable" ptrHtable
+    (ptrT,valT)      <- freshArray "T" 16 Byte Mutable
+    see "T" ptrT
+    aadSize          <- cryConst "AAD_Size"
+    (ptrBuf,valBuf)  <- freshArray "buf" aadSize Byte Immutable
+    see "Buf" ptrBuf
+    valSize          <- literalAt QWord aadSize
+
+    let gpRegs r =
+          case r of
+            RDI -> gpUse ptrHtable
+            RSI -> gpUse ptrBuf
+            RDX -> gpUse valSize
+            RCX -> gpUse ptrT
+            _   -> GPFresh AsBits
+
+-- Save 12 registers; 16 bytes local (2 qwords); RET for call
+    (_,r,basicPost) <- setupContext 0 (12 + 2) gpRegs (const Nothing)
     return (r, basicPost)
   where
-  strategy = satUnintSBV z3 []
+    strategy = satUnintSBV z3 []
+
+
+
 
 prove_test :: IO ()
 prove_test =

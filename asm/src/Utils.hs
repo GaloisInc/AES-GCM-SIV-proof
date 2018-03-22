@@ -154,14 +154,34 @@ checkPreserves :: KnownType t => Loc t -> (String, Prop Post)
 checkPreserves r =
   checkPost ("Location " ++ show r ++ " is not preserved.") (PreLoc r === Loc r)
 
-stackAlloc :: Integer -> Integer -> Alloc
-stackAlloc argWords locWords =
+stackAlloc :: Integer -> Alloc
+stackAlloc locWords =
   InReg M.RSP := Area { areaName = "stack"
                       , areaMode = RW
-                      , areaSize = (argWords + 1 + locWords) *. QWords
+                      , areaSize = (1 + locWords) *. QWords
                       , areaHasPointers = True
                       , areaPtr  = locWords *. QWords
                       }
+
+-- | Allocate a stack with some 64-bit argumetns
+stackAllocArgs ::
+  Integer {- ^ Number of QWord sized arguments -} ->
+  Integer {- ^ Nubmer of QWords for local space -} ->
+  (Integer -> Loc (LLVMPointerType 64), Alloc)
+  -- ^ (Locations of arguments, and stack initialization)
+stackAllocArgs argWords locWords =
+  ( arg
+  , InReg M.RSP := Area { areaName = "stack"
+                        , areaMode = RW
+                        , areaSize = (locWords + 1 + argWords) *. QWords
+                        , areaHasPointers = True
+                        , areaPtr  = locWords *. QWords
+                        }
+  )
+  where
+  arg i = inMem (InReg M.RSP) (1 + i) QWords
+
+
 
 standardPost :: [ (String, Prop Post) ]
 standardPost =

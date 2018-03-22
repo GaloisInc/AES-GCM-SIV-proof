@@ -26,8 +26,8 @@ main :: IO ()
 main =
   do -- prove_GFMUL "_GFMUL"
      -- prove_GFMUL "GFMUL"
-     prove_Polyval_Horner
-     -- prove_Polyval_Horner_AAD_MSG_LENBLK
+     -- prove_Polyval_Horner
+     prove_Polyval_Horner_AAD_MSG_LENBLK
      -- prove_AES_128_ENC_x4
      -- prove_AES_KS_ENC_x1
      -- prove_ENC_MSG_x4
@@ -60,7 +60,7 @@ prove_GFMUL :: ByteString -> IO ()
 prove_GFMUL gfMulVer =
   newProof gfMulVer strategy
     Specification
-      { specAllocs  = [ stackAlloc 0 0 ]
+      { specAllocs  = [ stackAlloc 0 ]
       , specPres    = []
       , specPosts   =
           standardPost ++
@@ -84,7 +84,7 @@ prove_Polyval_Horner =
   Specification
     { specAllocs =
       [ -- Save 10 registers; 16 bytes local (2 qwords); RET for call
-        stackAlloc 0 (10 + 2 + 1)
+        stackAlloc (10 + 2 + 1)
 
       , vT   := area "T"   RW (16      *. Bytes)
       , vH   := area "H"   RO (16      *. Bytes)
@@ -114,8 +114,48 @@ prove_Polyval_Horner =
 
 
 
+prove_Polyval_Horner_AAD_MSG_LENBLK :: IO ()
+prove_Polyval_Horner_AAD_MSG_LENBLK =
+  newProofSizes "Polyval_Horner_AAD_MSG_LENBLK" strategy $ \aadSize msgSize ->
+  Specification
+    { specAllocs =
+        [ stack
+        , vT      := area "T"       RW (16 *. Bytes)
+        , vH      := area "H"       RO (16 *. Bytes)
+        , vAAD    := area "AAD"     RO (aadSize *. Bytes)
+        , vPT     := area "PT"      RO (msgSize *. Bytes)
+        , vLenBlk := area "LEN_BLK" RO (2 *. QWords)
+        ]
+    , specPres = [ ("Size of AAD", Loc vAADSz === intLit aadSize)
+                 , ("Size of LEN", Loc vPTSz  === intLit msgSize)
+                 ]
+    , specPosts = standardPost ++
+                [ checkCryPost "Polyval_Horner_AAD_MSG_post"
+                    [ cryArrPre vH      16      Bytes
+                    , cryArrPre vAAD    aadSize Bytes
+                    , cryArrPre vPT     msgSize Bytes
+                    , cryArrPre vLenBlk 2       QWords
+                    , cryArrPre vT      16      Bytes
+                    , cryArrCur vT      16      Bytes
+                    ]
+                ]
 
+    , specGlobsRO = globals
+    }
 
+  where
+  vT      = InReg M.RDI
+  vH      = InReg M.RSI
+  vAAD    = InReg M.RDX
+  vAADSz  = InReg M.RCX
+  vPT     = InReg M.R8
+  vPTSz   = InReg M.R9
+  vLenBlk = arg 0
+
+  (arg,stack) = stackAllocArgs 1 (12 + 2 + 1)
+  -- Save 12 registers, 16 bytes local (2 qwords); ret for call
+
+  strategy = satUnintSBV yices ["dot"]
 
 
 
@@ -153,57 +193,6 @@ prove_AES_128_ENC_x4 =
      return (r,post)
   where strategy = satUnintSBV z3 [ "aes_round", "aes_final_round" ]
 
-
-prove_Polyval_Horner_AAD_MSG_LENBLK :: IO ()
-prove_Polyval_Horner_AAD_MSG_LENBLK =
-  let name = "Polyval_Horner_AAD_MSG_LENBLK" in
-  doProof name strategy $
-  do (ptrT, valT)    <- freshArray "T" 16 Byte Mutable
-     (ptrH, valH)    <- freshArray "H" 16 Byte Immutable
-
-     aadSize <- cryConst "AAD_Size"
-     (ptrAAD,valAAD) <- freshArray "AAD" aadSize Byte Immutable
-     valAADLen       <- literalAt QWord aadSize
-
-     msgSize <- cryConst "MSG_Size"
-     debug ("(Message size = " ++ show msgSize ++ " bytes.)")
-
-     (ptrPT, valPT)  <- freshArray "PT" msgSize Byte Immutable
-     valMsgLen       <- literalAt QWord msgSize
-
-     (ptrLenBlk, valLenBlk) <- freshArray "LEN_BLK" 2 QWord Immutable
-
-     let gpRegs r =
-           case r of
-             RDI -> gpUse ptrT
-             RSI -> gpUse ptrH
-             RDX -> gpUse ptrAAD
-             RCX -> gpUse valAADLen
-             R8  -> gpUse ptrPT
-             R9  -> gpUse valMsgLen
-             _   -> GPFresh AsBits
-
-     -- Save 12 registers, 16 bytes local (2 qwords); ret for call
-     (paramPtr, r, basicPost) <- setupContext 1 (12 + 2 + 1)
-                                              gpRegs (const Nothing)
-
-     writeMem paramPtr ptrLenBlk
-
-     let post =
-           do basicPost
-              sH      <- packVec valH
-              sAAD    <- packVec valAAD
-              sPT     <- packVec valPT
-              sLenBlk <- packVec valLenBlk
-              sT      <- packVec valT
-              sT'     <- packVec =<< readArray Byte ptrT 16
-
-              assertPost name "Polyval_Horner_AAD_MSG_post"
-                 [ sH, sAAD, sPT, sLenBlk, sT, sT' ]
-
-     return (r, post)
-
-  where strategy = satUnintSBV yices ["dot"]
 
 
 prove_AES_KS_ENC_x1 :: IO ()

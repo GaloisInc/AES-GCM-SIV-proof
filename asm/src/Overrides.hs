@@ -47,6 +47,7 @@ setupOverrides _sym cenv =
        [ declare (4,0x400d50) (gfmul_override sawDot)
        , declare (5,0x400d50) (gfmul_override sawDot)
        , declare (6,0x400d50) (gfmul_override sawDot)
+       , declare (7,0x400d50) (gfmul_override sawDot) 
        ]
 
   where

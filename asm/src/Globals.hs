@@ -19,6 +19,8 @@ setupGlobals =
 
      declare "poly"       0x400d40 QWord [ 0x1, 0xc200000000000000 ]
      declare "poly"       0x401040 QWord [ 0x1, 0xc200000000000000 ]
+     declare "poly"       0x4010c0 QWord [ 0x1, 0xc200000000000000 ]
+
 
      declare "OR_MASK"    0x402280 DWord
                             [ 0x00000000,0x00000000,0x00000000,0x80000000 ]

@@ -24,9 +24,9 @@ import Globals
 
 main :: IO ()
 main =
-  do prove_GFMUL "_GFMUL"
-     prove_GFMUL "GFMUL"
-     -- prove_Polyval_Horner
+  do -- prove_GFMUL "_GFMUL"
+     -- prove_GFMUL "GFMUL"
+     prove_Polyval_Horner
      -- prove_Polyval_Horner_AAD_MSG_LENBLK
      -- prove_AES_128_ENC_x4
      -- prove_AES_KS_ENC_x1
@@ -60,9 +60,7 @@ prove_GFMUL :: ByteString -> IO ()
 prove_GFMUL gfMulVer =
   newProof gfMulVer strategy
     Specification
-      { specAllocs  =
-          [ InReg M.RSP := Area "stack" RW (1 *. QWords) (0 *. QWords)
-          ]
+      { specAllocs  = [ stackAlloc 0 0 ]
       , specPres    = []
       , specPosts   =
           standardPost ++
@@ -77,6 +75,44 @@ prove_GFMUL gfMulVer =
   h   = InReg (M.YMM 1)
 
   strategy = satRME
+
+
+
+prove_Polyval_Horner :: IO ()
+prove_Polyval_Horner =
+  newProofSizes "Polyval_Horner" strategy $ \aadSize _msgSize ->
+  Specification
+    { specAllocs =
+      [ -- Save 10 registers; 16 bytes local (2 qwords); RET for call
+        stackAlloc 0 (10 + 2 + 1)
+
+      , vT   := area "T"   RW (16      *. Bytes)
+      , vH   := area "H"   RO (16      *. Bytes)
+      , vBuf := area "buf" RO (aadSize *. Bytes)
+      ]
+
+    , specPres = [ ("AAD Size", Loc vSize === intLit aadSize) ]
+
+    , specPosts = standardPost ++
+        [ checkCryPost "Polyval_Horner_post"
+            [ cryArrPre vH   16      Bytes
+            , cryArrPre vBuf aadSize Bytes
+            , cryArrPre vT   16      Bytes
+            , cryArrCur vT   16      Bytes
+            ]
+       ]
+
+    , specGlobsRO = globals
+    }
+  where
+  vT    = InReg M.RDI
+  vH    = InReg M.RSI
+  vBuf  = InReg M.RDX
+  vSize = InReg M.RCX
+
+  strategy = satUnintSBV yices ["dot"]
+
+
 
 
 
@@ -116,40 +152,6 @@ prove_AES_128_ENC_x4 =
 
      return (r,post)
   where strategy = satUnintSBV z3 [ "aes_round", "aes_final_round" ]
-
-prove_Polyval_Horner :: IO ()
-prove_Polyval_Horner =
-  let name = "Polyval_Horner" in
-  doProof name strategy $
-  do (ptrT,valT)      <- freshArray "T" 16 Byte Mutable
-     (ptrH,valH)      <- freshArray "H" 16 Byte Immutable
-
-     aadSize          <- cryConst "AAD_Size"
-     (ptrBuf,valBuf)  <- freshArray "buf" aadSize Byte Immutable
-     valSize          <- literalAt QWord aadSize
-
-     let gpRegs r =
-           case r of
-             RDI -> gpUse ptrT
-             RSI -> gpUse ptrH
-             RDX -> gpUse ptrBuf
-             RCX -> gpUse valSize
-             _   -> GPFresh AsBits
-
-     -- Save 10 registers; 16 bytes local (2 qwords); RET for call
-     (_,r,basicPost) <- setupContext 0 (10 + 2 + 1) gpRegs (const Nothing)
-
-     let post =
-          do basicPost
-             sH  <- packVec valH
-             sI  <- packVec valBuf
-             sT  <- packVec valT
-             sT' <- packVec =<< readArray Byte ptrT 16
-             assertPost name "Polyval_Horner_post" [ sH, sI, sT, sT' ]
-
-     return (r,post)
-
-  where strategy = satUnintSBV yices ["dot"]
 
 
 prove_Polyval_Horner_AAD_MSG_LENBLK :: IO ()

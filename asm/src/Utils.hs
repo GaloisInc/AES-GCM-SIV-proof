@@ -12,6 +12,7 @@ import Data.Parameterized.NatRepr(natValue)
 import SAWScript.X86
 import SAWScript.X86Spec
 import SAWScript.X86SpecNew hiding (cryConst, cryTerm)
+import qualified SAWScript.X86SpecNew as New
 import SAWScript.Prover.SolverStats
 import SAWScript.Prover.Mode(ProverMode(Prove))
 
@@ -30,6 +31,21 @@ newProof ::
   IO ()
 newProof fun strategy pre =
   newProofIO fun strategy (\_ -> return pre)
+
+newProofSizes ::
+  ByteString {- ^ Name of the function -} ->
+  Prover ->
+  (Integer -> Integer -> Specification) ->
+  IO ()
+newProofSizes fun strategy pre =
+  newProofIO fun strategy $ \cry ->
+    do let doGet x = case New.cryConst cry x of
+                       Left err -> fail err
+                       Right a  -> return a
+       aad <- doGet "AAD_Size"
+       msg <- doGet "MSG_Size"
+       return (pre aad msg)
+
 
 newProofIO ::
   ByteString {- ^ Name of the function -} ->
@@ -137,6 +153,15 @@ checkCryPost p xs =
 checkPreserves :: KnownType t => Loc t -> (String, Prop Post)
 checkPreserves r =
   checkPost ("Location " ++ show r ++ " is not preserved.") (PreLoc r === Loc r)
+
+stackAlloc :: Integer -> Integer -> Alloc
+stackAlloc argWords locWords =
+  InReg M.RSP := Area { areaName = "stack"
+                      , areaMode = RW
+                      , areaSize = (argWords + 1 + locWords) *. QWords
+                      , areaHasPointers = True
+                      , areaPtr  = locWords *. QWords
+                      }
 
 standardPost :: [ (String, Prop Post) ]
 standardPost =

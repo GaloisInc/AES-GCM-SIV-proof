@@ -45,6 +45,7 @@ setupOverrides _sym cenv =
      -- why are these in different pointer regions?
      return $ Map.fromList
        [ declare (4,0x400d50) (gfmul_override sawDot)
+       , declare (5,0x400d50) (gfmul_override sawDot)
        , declare (6,0x400d50) (gfmul_override sawDot)
        ]
 

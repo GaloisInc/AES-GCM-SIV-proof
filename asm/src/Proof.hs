@@ -12,7 +12,6 @@ import SAWScript.Prover.Exporter
 import SAWScript.X86Spec.Memory
 
 import SAWScript.X86SpecNew hiding (cryConst, cryTerm)
-import qualified SAWScript.X86SpecNew as Spec
 import qualified Data.Macaw.X86.X86Reg as M
 
 
@@ -25,14 +24,14 @@ import Globals
 
 main :: IO ()
 main =
-  do -- prove_GFMUL' "_GFMUL"
+  do prove_GFMUL "_GFMUL"
      prove_GFMUL "GFMUL"
-     prove_Polyval_Horner
-     prove_Polyval_Horner_AAD_MSG_LENBLK
-     prove_AES_128_ENC_x4
-     prove_AES_KS_ENC_x1
-     prove_ENC_MSG_x4
-     prove_ENC_MSG_x8
+     -- prove_Polyval_Horner
+     -- prove_Polyval_Horner_AAD_MSG_LENBLK
+     -- prove_AES_128_ENC_x4
+     -- prove_AES_KS_ENC_x1
+     -- prove_ENC_MSG_x4
+     -- prove_ENC_MSG_x8
 
      -- prove_test
 
@@ -56,90 +55,30 @@ prove_test =
   where
   strategy = satUnintSBV z3 []
 
-checkPost :: a -> b -> (a,b)
-checkPost x y = (x, y)
 
-prove_GFMUL' :: ByteString -> IO ()
-prove_GFMUL' gfMulVer =
-  newProof gfMulVer strategy $ \_ ->
-    let res = InReg (M.YMM 0)
-        h   = InReg (M.YMM 1)
-
-    in return Specification
+prove_GFMUL :: ByteString -> IO ()
+prove_GFMUL gfMulVer =
+  newProof gfMulVer strategy
+    Specification
       { specAllocs  =
           [ InReg M.RSP := Area "stack" RW (1 *. QWords) (0 *. QWords)
           ]
       , specPres    = []
       , specPosts   =
           standardPost ++
-          [ checkPost "GFMUL preservers XMM1" (PreLoc h === Loc h)
-          , checkPost "GFMUL post-condition" $
-              CryProp "GFMUL_post"
-                        [ Cry (PreLoc h), Cry (PreLoc res), Cry (Loc res) ]
+          [ checkPreserves h
+          , checkCryPost
+              "GFMUL_post" [ Cry (PreLoc h), Cry (PreLoc res), Cry (Loc res) ]
           ]
       , specGlobsRO = globals
       }
-{-
-  do valH   <- fresh V256 "H"
-     valRes <- fresh V256 "RES"
-
-     let gpRegs _ = GPFresh AsBits
-         vecRegs r =
-            case r of
-              YMM0 -> Just valRes
-              YMM1 -> Just valH
-              _    -> Nothing
-
-     (_, r, basicPost) <- setupContext 0 0 gpRegs vecRegs
-
-     let post = do basicPost
-
-                   let ymm1 = valVecReg r YMM1
-                   ymm1' <- getReg YMM1
-                   expectSame "GFMUL preserves XMM1" ymm1 ymm1'
-
-                   sawH   <- toSAW valH
-                   sawRes <- toSAW valRes
-                   ymm0   <- toSAW =<< getReg YMM0
-                   assertPost gfMulVer "GFMUL_post" [ sawH, sawRes, ymm0 ]
-
-     return (r,post)
--}
-
   where
+  res = InReg (M.YMM 0)
+  h   = InReg (M.YMM 1)
+
   strategy = satRME
 
 
-prove_GFMUL :: ByteString -> IO ()
-prove_GFMUL gfMulVer =
-  doProof gfMulVer strategy $
-  do valH   <- fresh V256 "H"
-     valRes <- fresh V256 "RES"
-
-     let gpRegs _ = GPFresh AsBits
-         vecRegs r =
-            case r of
-              YMM0 -> Just valRes
-              YMM1 -> Just valH
-              _    -> Nothing
-
-     (_, r, basicPost) <- setupContext 0 0 gpRegs vecRegs
-
-     let post = do basicPost
-
-                   let ymm1 = valVecReg r YMM1
-                   ymm1' <- getReg YMM1
-                   expectSame "GFMUL preserves XMM1" ymm1 ymm1'
-
-                   sawH   <- toSAW valH
-                   sawRes <- toSAW valRes
-                   ymm0   <- toSAW =<< getReg YMM0
-                   assertPost gfMulVer "GFMUL_post" [ sawH, sawRes, ymm0 ]
-
-     return (r,post)
-
-  where
-  strategy = satRME
 
 
 

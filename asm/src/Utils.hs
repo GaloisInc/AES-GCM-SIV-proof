@@ -1,4 +1,4 @@
-{-# Language RecordWildCards, DataKinds, FlexibleContexts #-}
+{-# Language RecordWildCards, DataKinds, FlexibleContexts, GADTs #-}
 module Utils (module Utils, module SAWScript.X86Spec) where
 
 import System.IO(hFlush,stdout)
@@ -26,9 +26,17 @@ import qualified Data.Macaw.X86.X86Reg as M
 newProof ::
   ByteString {- ^ Name of the function -} ->
   Prover ->
-  (CryptolEnv -> IO Specification) ->
+  Specification ->
   IO ()
 newProof fun strategy pre =
+  newProofIO fun strategy (\_ -> return pre)
+
+newProofIO ::
+  ByteString {- ^ Name of the function -} ->
+  Prover ->
+  (CryptolEnv -> IO Specification) ->
+  IO ()
+newProofIO fun strategy pre =
   do putStrLn (replicate 80 '-')
      let elf = "./verif-src/proof_target"
          cry = Just "cryptol/Asm128.cry"
@@ -116,33 +124,39 @@ setupContext pNum lNum setupGP setupVec =
 
      return (locals, r, post)
 
+
+checkPost :: a -> b -> (a,b)
+checkPost x y = (x, y)
+
+checkCryPost :: String -> [CryArg Post] -> (String, Prop Post)
+checkCryPost p xs =
+  checkPost ("Cryptol post-condition " ++ show p ++ " does not hold")
+  (CryProp p xs)
+
+
+checkPreserves :: KnownType t => Loc t -> (String, Prop Post)
+checkPreserves r =
+  checkPost ("Location " ++ show r ++ " is not preserved.") (PreLoc r === Loc r)
+
 standardPost :: [ (String, Prop Post) ]
 standardPost =
-  [ preserve M.RBX
-  , preserve M.RBP
-  , preserve M.R12
-  , preserve M.R13
-  , preserve M.R14
-  , preserve M.R15
+  [ checkPreserves (InReg M.RBX)
+  , checkPreserves (InReg M.RBP)
+  , checkPreserves (InReg M.R12)
+  , checkPreserves (InReg M.R13)
+  , checkPreserves (InReg M.R14)
+  , checkPreserves (InReg M.R15)
+  , preserveStack
+  , preserveIP
   ]
   where
-  preserve x = ("Preserve " ++ show x, PreLoc (InReg x) === Loc (InReg x))
 
+  preserveIP = checkPost "IP not restored"
+             $ PreLoc (inMem (InReg M.RSP) 0 QWords) === Loc (InReg M.X86_IP)
 
-{-
-setupComplexInstructions :: Spec Pre ()
-setupComplexInstructions =
-  do aesenc     <- cryTerm "aesenc" []
-     aesenclast <- cryTerm "aesenclast" []
-     clmul      <- cryTerm "clmul" []
-     let bin f = \sc x y -> scApplyAll sc f [x,y]
+  preserveStack = checkPost "Stack not restored"
+                $ PreAddPtr (InReg M.RSP) 1 QWords === Loc (InReg M.RSP)
 
-     registerSymFuns SymFunTerms
-                       { termAesEnc = bin aesenc
-                       , termAesEncLast = bin aesenclast
-                       , termClMul = bin clmul
-                       }
--}
 
 solveGoal :: Prover -> SharedContext -> Goal -> IO ()
 solveGoal prover ctx g =

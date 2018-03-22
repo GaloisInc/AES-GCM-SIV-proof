@@ -143,6 +143,11 @@ setupContext pNum lNum setupGP setupVec =
      return (locals, r, post)
 
 
+checkCryPost :: String -> [CryArg Post] -> (String, Prop Post)
+checkCryPost p xs =
+  checkPost ("Cryptol post-condition " ++ show p ++ " does not hold")
+  (CryProp p xs)
+
 checkPost :: a -> b -> (a,b)
 checkPost x y = (x, y)
 

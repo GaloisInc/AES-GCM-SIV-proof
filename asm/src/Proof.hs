@@ -28,10 +28,10 @@ main =
   do -- prove_GFMUL "_GFMUL"
      -- prove_GFMUL "GFMUL"
      -- prove_Polyval_Horner
-     prove_Polyval_Horner_AAD_MSG_LENBLK
+     -- prove_Polyval_Horner_AAD_MSG_LENBLK
      --prove_INIT_Htable
      -- prove_Polyval_Htable
-     -- prove_AES_128_ENC_x4
+     prove_AES_128_ENC_x4'
      -- prove_AES_KS_ENC_x1
      -- prove_ENC_MSG_x4
      -- prove_ENC_MSG_x8
@@ -132,9 +132,9 @@ prove_Polyval_Horner =
       [ -- Save 10 registers; 16 bytes local (2 qwords); RET for call
         stackAlloc (10 + 2 + 1)
 
-      , vT   := area "T"   RW (16      *. Bytes)
-      , vH   := area "H"   RO (16      *. Bytes)
-      , vBuf := area "buf" RO (aadSize *. Bytes)
+      , vT   := area "T"   RW 16      Bytes
+      , vH   := area "H"   RO 16      Bytes
+      , vBuf := area "buf" RO aadSize Bytes
       ]
 
     , specPres = [ ("AAD Size", Loc vSize === intLit aadSize) ]
@@ -169,11 +169,11 @@ prove_Polyval_Horner_AAD_MSG_LENBLK =
   Specification
     { specAllocs =
         [ stack
-        , vT      := area "T"       RW (16 *. Bytes)
-        , vH      := area "H"       RO (16 *. Bytes)
-        , vAAD    := area "AAD"     RO (aadSize *. Bytes)
-        , vPT     := area "PT"      RO (msgSize *. Bytes)
-        , vLenBlk := area "LEN_BLK" RO (2 *. QWords)
+        , vT      := area "T"       RW 16      Bytes
+        , vH      := area "H"       RO 16      Bytes
+        , vAAD    := area "AAD"     RO aadSize Bytes
+        , vPT     := area "PT"      RO msgSize Bytes
+        , vLenBlk := area "LEN_BLK" RO 2       QWords
         ]
     , specPres = [ ("Size of AAD", Loc vAADSz === intLit aadSize)
                  , ("Size of LEN", Loc vPTSz  === intLit msgSize)
@@ -208,6 +208,65 @@ prove_Polyval_Horner_AAD_MSG_LENBLK =
   resLoc = inMem vT 0 V128s
 
   strategy = satUnintSBV yices ["dot"]
+
+
+prove_AES_128_ENC_x4' :: IO ()
+prove_AES_128_ENC_x4' =
+  newProof "AES_128_ENC_x4" strategy
+  Specification
+    { specAllocs  = [ stackAlloc 3
+                    , vIV   := area "IV"   RO 16        Bytes
+                    , vCT   := area "CT"   WO 4         V128s
+                    , vKeys := area "Keys" RO (11 * 16) Bytes
+                    ]
+    , specPres    = [ ("IV not 0 padded",
+                              Loc (inMem vIV 12 Bytes) === litDWord 0) ]
+    , specPosts   = standardPost ++
+                    [ checkCryPost "AES_128_ENC_x4_post"
+                        [ cryArrPre vIV   16        Bytes
+                        , cryArrPre vKeys (11 * 16) Bytes
+                        , cryArrCur vCT   4         V128s
+                        ]
+                    ]
+    , specGlobsRO = globals
+    }
+
+{-
+  do
+     -- The nonce is 12 bytes, padded to 16
+     (noncePtr,nonce) <- freshArray "IV" 16  Byte Immutable
+     forM_ (drop 12 nonce) $ \v -> assume =<< sameVal v =<< literal 0
+
+     ctPtr          <- allocBytes "CT" Mutable (4 .* V128)
+     (keyPtr,keys)  <- freshArray "Keys" (11 * 16) Byte Immutable
+
+     let gpRegs r =
+           case r of
+             RDI -> gpUse noncePtr
+             RSI -> gpUse ctPtr
+             RDX -> gpUse keyPtr
+             _   -> GPFresh AsBits
+
+     (_,r,basicPost) <- setupContext 0 3 gpRegs (const Nothing)
+
+
+     let post =
+           do basicPost
+
+              sIV <- packVec nonce
+              sCT <- packVec =<< readArray V128 ctPtr 4
+              sKs <- packVec keys
+              assertPost name "AES_128_ENC_x4_post" [ sIV, sKs, sCT ]
+
+
+     return (r,post)
+-}
+  where
+  vIV   = InReg M.RDI
+  vCT   = InReg M.RSI
+  vKeys = InReg M.RDX
+
+  strategy = satUnintSBV z3 [ "aes_round", "aes_final_round" ]
 
 
 

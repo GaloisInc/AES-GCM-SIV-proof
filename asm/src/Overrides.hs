@@ -18,7 +18,6 @@ import qualified Data.Map as Map
 import Data.Parameterized.Context (Assignment)
 
 
-import Flexdis86.Register(ymmReg)
 import Lang.Crucible.Types
 import Lang.Crucible.Simulator.RegValue
 import Lang.Crucible.Solver.Interface
@@ -64,8 +63,8 @@ gfmul_override dot sym (mem,r) =
      ymm5 <- freshYMM sym 5
 
      let Just (RV sp)   = lookupX86Reg RSP r
-         Just (RV res0) = lookupX86Reg (YMM (ymmReg 0)) r
-         Just (RV h)    = lookupX86Reg (YMM (ymmReg 1)) r
+         Just (RV res0) = lookupX86Reg (YMM 0) r
+         Just (RV h)    = lookupX86Reg (YMM 1) r
 {-
      print ("SP on entry = " ++ show (ppPtr sp))
 
@@ -91,11 +90,11 @@ gfmul_override dot sym (mem,r) =
 
      let r1 = {-updReg X86_IP ip
             $ -}updReg RSP newSP
-            $ updReg (YMM (ymmReg 0)) (RV res)
-            $ updReg (YMM (ymmReg 2)) ymm2
-            $ updReg (YMM (ymmReg 3)) ymm3
-            $ updReg (YMM (ymmReg 4)) ymm4
-            $ updReg (YMM (ymmReg 5)) ymm5
+            $ updReg (YMM 0) (RV res)
+            $ updReg (YMM 2) ymm2
+            $ updReg (YMM 3) ymm3
+            $ updReg (YMM 4) ymm4
+            $ updReg (YMM 5) ymm5
               r
 
 

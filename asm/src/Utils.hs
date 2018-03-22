@@ -1,4 +1,4 @@
-{-# Language RecordWildCards, DataKinds #-}
+{-# Language RecordWildCards, DataKinds, FlexibleContexts #-}
 module Utils (module Utils, module SAWScript.X86Spec) where
 
 import System.IO(hFlush,stdout)
@@ -7,18 +7,38 @@ import Control.Exception(catch)
 import Control.Concurrent(forkIO,newEmptyMVar,takeMVar,putMVar,killThread)
 import System.Console.ANSI
 
+import Data.Parameterized.NatRepr(natValue)
 
 import SAWScript.X86
 import SAWScript.X86Spec
+import SAWScript.X86SpecNew hiding (cryConst, cryTerm)
 import SAWScript.Prover.SolverStats
 import SAWScript.Prover.Mode(ProverMode(Prove))
 
 import Verifier.SAW.SharedTerm
 import Verifier.SAW.FiniteValue(FirstOrderValue)
-import Data.Parameterized.NatRepr(natValue)
+import Verifier.SAW.CryptolEnv(CryptolEnv)
 
 import Globals(setupGlobals)
 import Overrides(setupOverrides)
+import qualified Data.Macaw.X86.X86Reg as M
+
+newProof ::
+  ByteString {- ^ Name of the function -} ->
+  Prover ->
+  (CryptolEnv -> IO Specification) ->
+  IO ()
+newProof fun strategy pre =
+  do putStrLn (replicate 80 '-')
+     let elf = "./verif-src/proof_target"
+         cry = Just "cryptol/Asm128.cry"
+
+     (ctx, gs) <- proof linuxInfo elf cry setupOverrides
+                    Fun { funName = fun, funSpec = NewStyle pre }
+     mapM_ (solveGoal strategy ctx) gs
+  `catch` \(X86Error e) -> putStrLn e
+
+
 
 
 see :: Infer t => String -> Value t -> Spec p ()
@@ -56,15 +76,13 @@ setupContext ::
   Spec Pre (Value APtr, RegAssign, Spec Post ())
   -- ^ Pointer to the last (smallest) parameter, reg assign, and post cond
 setupContext pNum lNum setupGP setupVec =
-  do setupComplexInstructions
+  do -- setupComplexInstructions
      setupGlobals
 
      ipFun <- freshRegs
      let valIP = ipFun IP
 
      (locals,rsp,ret) <- setupStack pNum lNum
-
-     see "RSP" rsp
 
      valGPReg <- setupGPRegs $ \r ->
                    case r of
@@ -98,8 +116,20 @@ setupContext pNum lNum setupGP setupVec =
 
      return (locals, r, post)
 
+standardPost :: [ (String, Prop Post) ]
+standardPost =
+  [ preserve M.RBX
+  , preserve M.RBP
+  , preserve M.R12
+  , preserve M.R13
+  , preserve M.R14
+  , preserve M.R15
+  ]
+  where
+  preserve x = ("Preserve " ++ show x, PreLoc (InReg x) === Loc (InReg x))
 
 
+{-
 setupComplexInstructions :: Spec Pre ()
 setupComplexInstructions =
   do aesenc     <- cryTerm "aesenc" []
@@ -112,6 +142,7 @@ setupComplexInstructions =
                        , termAesEncLast = bin aesenclast
                        , termClMul = bin clmul
                        }
+-}
 
 solveGoal :: Prover -> SharedContext -> Goal -> IO ()
 solveGoal prover ctx g =

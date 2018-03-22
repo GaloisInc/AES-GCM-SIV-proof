@@ -1,4 +1,4 @@
-{-# Language OverloadedStrings #-}
+{-# Language OverloadedStrings, DataKinds #-}
 module Main where
 
 import Data.ByteString(ByteString)
@@ -33,27 +33,6 @@ main =
      -- prove_ENC_MSG_x4
      -- prove_ENC_MSG_x8
 
-     -- prove_test
-
-
-prove_test :: IO ()
-prove_test =
-  doProof "galois_xxx" strategy $
-  do xmm0 <- saw V256 =<< cryTerm "test_xmm0" []
-     xmm1 <- saw V256 =<< cryTerm "test_xmm1" []
-     let vecRegs r = case r of
-                       YMM0 -> Just xmm0
-                       YMM1 -> Just xmm1
-                       _    -> Nothing
-     (_,r,_basicPost) <- setupContext 0 0 (const (GPFresh AsBits)) vecRegs
-     let post =
-          do v <- toSAW =<< getReg YMM2
-             assertPost "galois_xxx" "test_post" [v]
-
-     return (r,post)
-
-  where
-  strategy = satUnintSBV z3 []
 
 
 prove_GFMUL :: ByteString -> IO ()
@@ -65,8 +44,7 @@ prove_GFMUL gfMulVer =
       , specPosts   =
           standardPost ++
           [ checkPreserves h
-          , checkCryPost
-              "GFMUL_post" [ Cry (PreLoc h), Cry (PreLoc res), Cry (Loc res) ]
+          , checkCryPostDef res "dot256" [ cryPre h, cryPre res ]
           ]
       , specGlobsRO = globals
       }
@@ -94,12 +72,12 @@ prove_Polyval_Horner =
     , specPres = [ ("AAD Size", Loc vSize === intLit aadSize) ]
 
     , specPosts = standardPost ++
-        [ checkCryPost "Polyval_Horner_post"
-            [ cryArrPre vH   16      Bytes
-            , cryArrPre vBuf aadSize Bytes
-            , cryArrPre vT   16      Bytes
-            , cryArrCur vT   16      Bytes
-            ]
+        [ checkCryPostDef resLoc
+             "Polyval_Horner_def"
+                [ cryArrPre vH   16      Bytes
+                , cryArrPre vBuf aadSize Bytes
+                , cryArrPre vT   16      Bytes
+                ]
        ]
 
     , specGlobsRO = globals
@@ -109,6 +87,9 @@ prove_Polyval_Horner =
   vH    = InReg M.RSI
   vBuf  = InReg M.RDX
   vSize = InReg M.RCX
+
+  resLoc :: Loc (LLVMPointerType 128)
+  resLoc = inMem vT 0 V128s
 
   strategy = satUnintSBV yices ["dot"]
 
@@ -130,13 +111,13 @@ prove_Polyval_Horner_AAD_MSG_LENBLK =
                  , ("Size of LEN", Loc vPTSz  === intLit msgSize)
                  ]
     , specPosts = standardPost ++
-                [ checkCryPost "Polyval_Horner_AAD_MSG_post"
+                [ checkCryPostDef resLoc
+                    "Polyval_Horner_AAD_MSG_def"
                     [ cryArrPre vH      16      Bytes
                     , cryArrPre vAAD    aadSize Bytes
                     , cryArrPre vPT     msgSize Bytes
                     , cryArrPre vLenBlk 2       QWords
                     , cryArrPre vT      16      Bytes
-                    , cryArrCur vT      16      Bytes
                     ]
                 ]
 
@@ -154,6 +135,9 @@ prove_Polyval_Horner_AAD_MSG_LENBLK =
 
   (arg,stack) = stackAllocArgs 1 (12 + 2 + 1)
   -- Save 12 registers, 16 bytes local (2 qwords); ret for call
+
+  resLoc :: Loc (LLVMPointerType 128)
+  resLoc = inMem vT 0 V128s
 
   strategy = satUnintSBV yices ["dot"]
 

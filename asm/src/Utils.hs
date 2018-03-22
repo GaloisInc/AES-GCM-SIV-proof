@@ -1,13 +1,15 @@
 {-# Language RecordWildCards, DataKinds, FlexibleContexts, GADTs #-}
+{-# Language TypeOperators #-}
 module Utils (module Utils, module SAWScript.X86Spec) where
 
+import GHC.TypeLits(type (<=), KnownNat)
 import System.IO(hFlush,stdout)
 import Data.ByteString(ByteString)
 import Control.Exception(catch)
 import Control.Concurrent(forkIO,newEmptyMVar,takeMVar,putMVar,killThread)
 import System.Console.ANSI
 
-import Data.Parameterized.NatRepr(natValue)
+import Data.Parameterized.NatRepr(natValue,knownNat)
 
 import SAWScript.X86
 import SAWScript.X86Spec
@@ -144,10 +146,13 @@ setupContext pNum lNum setupGP setupVec =
 checkPost :: a -> b -> (a,b)
 checkPost x y = (x, y)
 
-checkCryPost :: String -> [CryArg Post] -> (String, Prop Post)
-checkCryPost p xs =
-  checkPost ("Cryptol post-condition " ++ show p ++ " does not hold")
-  (CryProp p xs)
+checkCryPostDef ::
+  (1 <= w, KnownNat w) =>
+  Loc (LLVMPointerType w) -> String -> [CryArg Post] -> (String, Prop Post)
+checkCryPostDef l f xs =
+  checkPost (show l ++ " is not defined by " ++ show f)
+            (Loc l === CryFun knownNat f xs)
+
 
 
 checkPreserves :: KnownType t => Loc t -> (String, Prop Post)

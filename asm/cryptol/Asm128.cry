@@ -8,25 +8,21 @@ import AES128_GCM_SIV
 type AAD_Size = 36
 type MSG_Size = 160
 
-GFMUL_post : [256] -> [256] -> [256] -> Bool
-GFMUL_post h res out = dot256 res h == out
-
 dot256 : [256] -> [256] -> [256]
 dot256 (_ # res) (_ # h) = 0 # dot res h
 
-Polyval_Horner_post : [16][8] -> [AAD_Size][8] -> [16][8] -> [16][8] -> Bool
-Polyval_Horner_post h i t t' =
-  polyvalFrom (leLoad h) (leLoadBlocks i) (leLoad t) == leLoad t'
+Polyval_Horner_def : [16][8] -> [AAD_Size][8] -> [16][8] -> [128]
+Polyval_Horner_def h i t = polyvalFrom (leLoad h) (leLoadBlocks i) (leLoad t)
 
-Polyval_Horner_AAD_MSG_post :
-  [16][8] -> [AAD_Size][8] -> [MSG_Size][8] -> [2][64] ->
-  [16][8] -> [16][8] -> Bool
-Polyval_Horner_AAD_MSG_post h aad pt lblk t t' =
-  polyvalFrom (leLoad h) work (leLoad t) == leLoad t'
+Polyval_Horner_AAD_MSG_def :
+  [16][8] -> [AAD_Size][8] -> [MSG_Size][8] -> [2][64] -> [16][8] -> [128]
+Polyval_Horner_AAD_MSG_def h aad pt lblk t =
+  polyvalFrom (leLoad h) work (leLoad t)
   where
   work = leLoadBlocks aad
        # leLoadBlocks pt
        # leLoadBlocks [ b | qword <- lblk, b <- leStore qword ]
+
 
 // See `derive_key` in the spec.
 AES_128_ENC_x4_post : [16][8] -> [11 * 16][8] -> [4][128] -> Bool

@@ -148,6 +148,9 @@ checkCryPost p xs =
   checkPost ("Cryptol post-condition " ++ show p ++ " does not hold")
   (CryProp p xs)
 
+checkPre :: a -> b -> (a,b)
+checkPre = checkPost
+
 checkPost :: a -> b -> (a,b)
 checkPost x y = (x, y)
 

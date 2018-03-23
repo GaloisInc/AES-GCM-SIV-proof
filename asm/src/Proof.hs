@@ -1,9 +1,9 @@
-{-# Language OverloadedStrings, DataKinds #-}
+{-# Language OverloadedStrings, DataKinds, TypeOperators #-}
 module Main where
 
+import GHC.TypeLits(type (*))
 
 import Data.ByteString(ByteString)
-import Control.Monad(forM_)
 
 import SAWScript.Prover.SBV(satUnintSBV,z3,cvc4,yices)
 import SAWScript.Prover.RME(satRME)
@@ -31,9 +31,9 @@ main =
      -- prove_Polyval_Horner_AAD_MSG_LENBLK
      --prove_INIT_Htable
      -- prove_Polyval_Htable
-     prove_AES_128_ENC_x4'
+     -- prove_AES_128_ENC_x4
      -- prove_AES_KS_ENC_x1
-     -- prove_ENC_MSG_x4
+     prove_ENC_MSG_x4
      -- prove_ENC_MSG_x8
 
 
@@ -137,7 +137,7 @@ prove_Polyval_Horner =
       , vBuf := area "buf" RO aadSize Bytes
       ]
 
-    , specPres = [ ("AAD Size", Loc vSize === intLit aadSize) ]
+    , specPres = [ checkPre "Invalid AAD Size" (Loc vSize === intLit aadSize) ]
 
     , specPosts = standardPost ++
         [ checkCryPostDef resLoc
@@ -175,8 +175,8 @@ prove_Polyval_Horner_AAD_MSG_LENBLK =
         , vPT     := area "PT"      RO msgSize Bytes
         , vLenBlk := area "LEN_BLK" RO 2       QWords
         ]
-    , specPres = [ ("Size of AAD", Loc vAADSz === intLit aadSize)
-                 , ("Size of LEN", Loc vPTSz  === intLit msgSize)
+    , specPres = [ checkPre "Invalid AAD size" (Loc vAADSz === intLit aadSize)
+                 , checkPre "Invalid LEN size" (Loc vPTSz  === intLit msgSize)
                  ]
     , specPosts = standardPost ++
                 [ checkCryPostDef resLoc
@@ -210,8 +210,8 @@ prove_Polyval_Horner_AAD_MSG_LENBLK =
   strategy = satUnintSBV yices ["dot"]
 
 
-prove_AES_128_ENC_x4' :: IO ()
-prove_AES_128_ENC_x4' =
+prove_AES_128_ENC_x4 :: IO ()
+prove_AES_128_ENC_x4 =
   newProof "AES_128_ENC_x4" strategy
   Specification
     { specAllocs  = [ stackAlloc 3
@@ -219,165 +219,101 @@ prove_AES_128_ENC_x4' =
                     , vCT   := area "CT"   WO 4         V128s
                     , vKeys := area "Keys" RO (11 * 16) Bytes
                     ]
-    , specPres    = [ ("IV not 0 padded",
-                              Loc (inMem vIV 12 Bytes) === litDWord 0) ]
+    , specPres    = [ checkPre "IV not 0 padded"
+                         $ Loc (inMem vIV 12 Bytes) === litDWord 0
+                    ]
     , specPosts   = standardPost ++
-                    [ checkCryPost "AES_128_ENC_x4_post"
+                    [ checkCryPostDef res
+                       "AES_128_ENC_x4_def"
                         [ cryArrPre vIV   16        Bytes
                         , cryArrPre vKeys (11 * 16) Bytes
-                        , cryArrCur vCT   4         V128s
                         ]
                     ]
     , specGlobsRO = globals
     }
 
-{-
-  do
-     -- The nonce is 12 bytes, padded to 16
-     (noncePtr,nonce) <- freshArray "IV" 16  Byte Immutable
-     forM_ (drop 12 nonce) $ \v -> assume =<< sameVal v =<< literal 0
-
-     ctPtr          <- allocBytes "CT" Mutable (4 .* V128)
-     (keyPtr,keys)  <- freshArray "Keys" (11 * 16) Byte Immutable
-
-     let gpRegs r =
-           case r of
-             RDI -> gpUse noncePtr
-             RSI -> gpUse ctPtr
-             RDX -> gpUse keyPtr
-             _   -> GPFresh AsBits
-
-     (_,r,basicPost) <- setupContext 0 3 gpRegs (const Nothing)
-
-
-     let post =
-           do basicPost
-
-              sIV <- packVec nonce
-              sCT <- packVec =<< readArray V128 ctPtr 4
-              sKs <- packVec keys
-              assertPost name "AES_128_ENC_x4_post" [ sIV, sKs, sCT ]
-
-
-     return (r,post)
--}
   where
   vIV   = InReg M.RDI
   vCT   = InReg M.RSI
   vKeys = InReg M.RDX
 
+  res   = inMem vCT 0 Bytes :: Loc (LLVMPointerType (4 * 128))
+
   strategy = satUnintSBV z3 [ "aes_round", "aes_final_round" ]
-
-
-
-prove_AES_128_ENC_x4 :: IO ()
-prove_AES_128_ENC_x4 =
-  let name = "AES_128_ENC_x4" in
-  doProof name strategy $
-  do
-     -- The nonce is 12 bytes, padded to 16
-     (noncePtr,nonce) <- freshArray "IV" 16  Byte Immutable
-     forM_ (drop 12 nonce) $ \v -> assume =<< sameVal v =<< literal 0
-
-     ctPtr          <- allocBytes "CT" Mutable (4 .* V128)
-     (keyPtr,keys)  <- freshArray "Keys" (11 * 16) Byte Immutable
-
-     let gpRegs r =
-           case r of
-             RDI -> gpUse noncePtr
-             RSI -> gpUse ctPtr
-             RDX -> gpUse keyPtr
-             _   -> GPFresh AsBits
-
-     (_,r,basicPost) <- setupContext 0 3 gpRegs (const Nothing)
-
-
-     let post =
-           do basicPost
-
-              sIV <- packVec nonce
-              sCT <- packVec =<< readArray V128 ctPtr 4
-              sKs <- packVec keys
-              assertPost name "AES_128_ENC_x4_post" [ sIV, sKs, sCT ]
-
-
-     return (r,post)
-  where strategy = satUnintSBV z3 [ "aes_round", "aes_final_round" ]
 
 
 
 prove_AES_KS_ENC_x1 :: IO ()
 prove_AES_KS_ENC_x1 =
-  let name = "AES_KS_ENC_x1" in
-  doProof name strategy $
-  do (ptrPT, valPT)     <- freshArray "PT" 16 Byte Immutable
-     ptrCT              <- allocBytes "CT" Mutable (16 .* Byte)
-     ptrKeys            <- allocBytes "Keys" Mutable (11 .* V128)
+  newProof "AES_KS_ENC_x1" strategy
+  Specification
+    { specAllocs = [ stackAlloc 6
+                   , vPT    := area "PT"   RO 16 Bytes
+                   , vCT    := area "CT"   WO 16 Bytes
+                   , vKeys  := area "Keys" WO 11 V128s
+                   , vIKey  := area "IKey" RO 16 Bytes
+                   ]
+    , specGlobsRO = globals
+    , specPres = []
+    , specPosts = standardPost ++
+        [ checkCryPostDef res1 "AES_KS_ENC_x1_def1" [ cryArrPre vIKey 16 Bytes ]
+        , checkCryPostDef res2 "AES_KS_ENC_x1_def2"
+            [ cryArrCur vKeys (11 * 16) Bytes
+            , cryArrPre vPT   16        Bytes
+            ]
+        ]
+    }
 
-     (ptrIKey,valIKey)  <- freshArray "IKey" 16 Byte Immutable
+  where
+  vPT   = InReg M.RDI
+  vCT   = InReg M.RSI
+  -- RDX: unused parameter
+  vKeys = InReg M.RCX
+  vIKey = InReg M.R8
 
-     let gpRegs r =
-           case r of
-             RDI -> gpUse ptrPT
-             RSI -> gpUse ptrCT
-             -- RDX: unused parameter
-             RCX -> gpUse ptrKeys
-             R8  -> gpUse ptrIKey
-             _   -> GPFresh AsBits
+  res1 = inMem vKeys 0 Bytes :: Loc (LLVMPointerType (11 * 128))
+  res2 = inMem vCT   0 Bytes :: Loc (LLVMPointerType 128)
 
-     -- Save 6 registers
-     (_, r, basicPost) <- setupContext 0 6 gpRegs (const Nothing)
-
-     let post =
-          do basicPost
-             sIKey  <- packVec valIKey
-             sPT    <- packVec valPT
-             sCT    <- packVec =<< readArray Byte ptrCT 16
-             sKeys  <- packVec =<< readArray Byte ptrKeys (11 * 16)
-             assertPost name "AES_KS_ENC_x1_post1" [ sIKey, sKeys ]
-             assertPost name "AES_KS_ENC_x1_post2" [ sKeys, sPT, sCT ]
-
-     return (r,post)
-
-  where strategy = satABC
+  strategy = satABC
 
 
 prove_ENC_MSG_x4 :: IO ()
 prove_ENC_MSG_x4 =
-  let name = "ENC_MSG_x4" in
-  doProof name strategy $
-  do msgSize <- cryConst "MSG_Size"
-     debug ("(Message size = " ++ show msgSize ++ " bytes.)")
+  newProofSizes "ENC_MSG_x4" strategy $ \_aadSize msgSize ->
+  Specification
+    { specGlobsRO = globals
+    , specAllocs =
+        [ stackAlloc (10 + 2)
+        , vPT   := area "PT"    RO msgSize   Bytes
+        , vCT   := area "CT"    WO msgSize   Bytes
+        , vTag  := area "TAG"   RO 16        Bytes
+        , vKeys := area "Keys"  RO (11 * 16) Bytes
+        ]
+    , specPres =
+        [ checkPre "Invalid message size" (Loc vMsgLen === intLit msgSize) ]
+    , specPosts = standardPost ++
+        [ checkCryPostDef res "ENC_MSG_def"
+            [ cryArrPre vKeys  (11 * 16) Bytes
+            , cryArrPre vTag   16        Bytes
+            , cryArrPre vPT    msgSize   Bytes
+            ]
+        ]
 
-     (ptrPT, valPT)     <- freshArray "PT" msgSize Byte Immutable
-     valMsgLen          <- literalAt QWord msgSize
+    }
 
-     ptrCT              <- allocBytes "CT" Mutable (msgSize .* Byte)
-     (ptrTAG, valTag)   <- freshArray "TAG" 16 Byte Immutable
-     (ptrKeys, valKeys) <- freshArray "Keys" (11 * 16) Byte Immutable
-
-     let gpRegs r = case r of
-                      RDI -> gpUse ptrPT
-                      RSI -> gpUse ptrCT
-                      RDX -> gpUse ptrTAG
-                      RCX -> gpUse ptrKeys
-                      R8  -> gpUse valMsgLen
-                      _   -> GPFresh AsBits
-
-     -- Save 10 register; 16 bytes (2 qwords) of local space.
-     (_, r, basicPost) <- setupContext 0 (10 + 2) gpRegs (const Nothing)
-
-     let post =
-          do basicPost
-             sPT   <- packVec valPT
-             sCT   <- packVec =<< readArray Byte ptrCT msgSize
-             sTAG  <- packVec valTag
-             sKeys <- packVec valKeys
-             assertPost name "ENC_MSG_post" [ sKeys, sTAG, sPT, sCT ]
-
-     return (r,post)
   where
+  vPT     = InReg M.RDI
+  vCT     = InReg M.RSI
+  vTag    = InReg M.RDX
+  vKeys   = InReg M.RCX
+  vMsgLen = InReg M.R8
+
+  -- XXX: The 160 here needs to match `msgSize`
+  res = inMem vCT 0 Bytes :: Loc (LLVMPointerType (160 * 8))
+
   strategy = satUnintSBV z3 [ "aes_round", "aes_final_round" ]
+
+
 
 
 prove_ENC_MSG_x8 :: IO ()

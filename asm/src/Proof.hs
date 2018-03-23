@@ -3,12 +3,9 @@ module Main where
 
 import GHC.TypeLits(type (*))
 
-import Data.ByteString(ByteString)
-
-import SAWScript.Prover.SBV(satUnintSBV,z3,cvc4,yices)
+import SAWScript.Prover.SBV(satUnintSBV,z3,yices)
 import SAWScript.Prover.RME(satRME)
 import SAWScript.Prover.ABC(satABC)
-import SAWScript.Prover.Exporter
 
 import SAWScript.X86Spec.Memory
 
@@ -25,19 +22,19 @@ import Globals
 
 main :: IO ()
 main =
-  do -- prove_GFMUL "_GFMUL"
-     -- prove_GFMUL "GFMUL"
-     -- prove_Polyval_Horner
-     -- prove_Polyval_Horner_AAD_MSG_LENBLK
-     --prove_INIT_Htable
+  do gfmul <- newProof "_GFMUL" satRME spec_GFMUL
+     _ <- prove_Polyval_Horner gfmul
+     _ <- prove_Polyval_Horner_AAD_MSG_LENBLK gfmul
+     -- prove_INIT_Htable
      -- prove_Polyval_Htable
-     -- prove_AES_128_ENC_x4
-     -- prove_AES_KS_ENC_x1
-     prove_ENC_MSG_x4
+     _ <- prove_AES_128_ENC_x4
+     _ <- prove_AES_KS_ENC_x1
+     _ <- prove_ENC_MSG_x4
      -- prove_ENC_MSG_x8
 
 
 
+     return ()
 
 
 prove_INIT_Htable :: IO()
@@ -103,29 +100,37 @@ prove_Polyval_Htable =
     strategy = satUnintSBV z3 []
 
 
-prove_GFMUL :: ByteString -> IO ()
-prove_GFMUL gfMulVer =
-  newProof gfMulVer strategy
-    Specification
-      { specAllocs  = [ stackAlloc 0 ]
-      , specPres    = []
-      , specPosts   =
-          standardPost ++
-          [ checkPreserves h
-          , checkCryPostDef res "dot256" [ cryPre h, cryPre res ]
-          ]
-      , specGlobsRO = globals
-      }
+spec_GFMUL :: Specification
+spec_GFMUL =
+  Specification
+    { specAllocs  = [ stackAlloc 0 ]
+    , specPres    = []
+    , specPosts   =
+        standardPost ++
+        [ checkPreserves h
+        , checkPreserves (InReg M.RAX)
+        , checkPreserves (InReg M.RCX)
+        , checkPreserves (InReg M.RDX)
+        , checkPreserves (InReg M.RDI)
+        , checkPreserves (InReg M.RSI)
+        , checkPreserves (InReg M.R8)
+        , checkPreserves (InReg M.R9)
+        , checkPreserves (InReg M.R10)
+        , checkPreserves (InReg M.R11)
+        , checkCryPostDef res "dot256" [ cryPre res, cryPre h ]
+        ]
+    , specGlobsRO = globals
+    , specCalls = []
+    }
   where
   res = InReg (M.YMM 0)
   h   = InReg (M.YMM 1)
 
-  strategy = satRME
 
 
 
-prove_Polyval_Horner :: IO ()
-prove_Polyval_Horner =
+prove_Polyval_Horner :: Integer -> IO Integer
+prove_Polyval_Horner gfmul =
   newProofSizes "Polyval_Horner" strategy $ \aadSize _msgSize ->
   Specification
     { specAllocs =
@@ -149,6 +154,7 @@ prove_Polyval_Horner =
        ]
 
     , specGlobsRO = globals
+    , specCalls = [ ("GFMUL", gfmul, spec_GFMUL) ]
     }
   where
   vT    = InReg M.RDI
@@ -163,8 +169,8 @@ prove_Polyval_Horner =
 
 
 
-prove_Polyval_Horner_AAD_MSG_LENBLK :: IO ()
-prove_Polyval_Horner_AAD_MSG_LENBLK =
+prove_Polyval_Horner_AAD_MSG_LENBLK :: Integer -> IO Integer
+prove_Polyval_Horner_AAD_MSG_LENBLK gfmul =
   newProofSizes "Polyval_Horner_AAD_MSG_LENBLK" strategy $ \aadSize msgSize ->
   Specification
     { specAllocs =
@@ -190,6 +196,7 @@ prove_Polyval_Horner_AAD_MSG_LENBLK =
                 ]
 
     , specGlobsRO = globals
+    , specCalls = [ ("GFMUL", gfmul, spec_GFMUL) ]
     }
 
   where
@@ -210,7 +217,7 @@ prove_Polyval_Horner_AAD_MSG_LENBLK =
   strategy = satUnintSBV yices ["dot"]
 
 
-prove_AES_128_ENC_x4 :: IO ()
+prove_AES_128_ENC_x4 :: IO Integer
 prove_AES_128_ENC_x4 =
   newProof "AES_128_ENC_x4" strategy
   Specification
@@ -230,6 +237,7 @@ prove_AES_128_ENC_x4 =
                         ]
                     ]
     , specGlobsRO = globals
+    , specCalls = []
     }
 
   where
@@ -243,7 +251,7 @@ prove_AES_128_ENC_x4 =
 
 
 
-prove_AES_KS_ENC_x1 :: IO ()
+prove_AES_KS_ENC_x1 :: IO Integer
 prove_AES_KS_ENC_x1 =
   newProof "AES_KS_ENC_x1" strategy
   Specification
@@ -262,6 +270,7 @@ prove_AES_KS_ENC_x1 =
             , cryArrPre vPT   16        Bytes
             ]
         ]
+    , specCalls = []
     }
 
   where
@@ -277,7 +286,7 @@ prove_AES_KS_ENC_x1 =
   strategy = satABC
 
 
-prove_ENC_MSG_x4 :: IO ()
+prove_ENC_MSG_x4 :: IO Integer
 prove_ENC_MSG_x4 =
   newProofSizes "ENC_MSG_x4" strategy $ \_aadSize msgSize ->
   Specification
@@ -298,7 +307,7 @@ prove_ENC_MSG_x4 =
             , cryArrPre vPT    msgSize   Bytes
             ]
         ]
-
+    , specCalls = []
     }
 
   where

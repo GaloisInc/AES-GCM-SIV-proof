@@ -8,6 +8,7 @@ import Data.ByteString(ByteString)
 import Control.Exception(catch)
 import Control.Concurrent(forkIO,newEmptyMVar,takeMVar,putMVar,killThread)
 import System.Console.ANSI
+import qualified Data.Map as Map
 
 import Data.Parameterized.NatRepr(natValue,knownNat)
 
@@ -22,15 +23,19 @@ import Verifier.SAW.SharedTerm
 import Verifier.SAW.FiniteValue(FirstOrderValue)
 import Verifier.SAW.CryptolEnv(CryptolEnv)
 
+import qualified Data.Macaw.X86.X86Reg as M
+
+
 import Globals(setupGlobals)
 import Overrides(setupOverrides)
-import qualified Data.Macaw.X86.X86Reg as M
+
+import System.Exit(exitFailure)
 
 newProof ::
   ByteString {- ^ Name of the function -} ->
   Prover ->
   Specification ->
-  IO ()
+  IO Integer
 newProof fun strategy pre =
   newProofIO fun strategy (\_ -> return pre)
 
@@ -38,7 +43,7 @@ newProofSizes ::
   ByteString {- ^ Name of the function -} ->
   Prover ->
   (Integer -> Integer -> Specification) ->
-  IO ()
+  IO Integer
 newProofSizes fun strategy pre =
   newProofIO fun strategy $ \cry ->
     do let doGet x = case New.cryConst cry x of
@@ -53,17 +58,24 @@ newProofIO ::
   ByteString {- ^ Name of the function -} ->
   Prover ->
   (CryptolEnv -> IO Specification) ->
-  IO ()
+  IO Integer
 newProofIO fun strategy pre =
   do putStrLn (replicate 80 '-')
      let elf = "./verif-src/proof_target"
          cry = Just "cryptol/Asm128.cry"
 
-     (ctx, gs) <- proof linuxInfo elf cry setupOverrides
-                    Fun { funName = fun, funSpec = NewStyle pre }
-     mapM_ (solveGoal strategy ctx) gs
-  `catch` \(X86Error e) -> putStrLn e
+         display _s = do return ()
+                        -- debugPPReg M.RDI s
 
+
+     (ctx, addr, gs) <- proof linuxInfo elf cry (\_ _ -> return Map.empty)
+                    Fun { funName = fun
+                        , funSpec = NewStyle pre display }
+     mapM_ (solveGoal strategy ctx) gs
+     return addr
+  `catch` \(X86Error e) -> do putStrLn e
+                              say Red "  Proof failed"
+                              exitFailure
 
 
 
@@ -85,8 +97,8 @@ doProof fun strategy pre =
      let elf = "./verif-src/proof_target"
          cry = Just "cryptol/Asm128.cry"
 
-     (ctx, gs) <- proof linuxInfo elf cry setupOverrides
-                    Fun { funName = fun, funSpec = OldStyle pre }
+     (ctx, _, gs) <- proof linuxInfo elf cry setupOverrides
+                        Fun { funName = fun, funSpec = OldStyle pre }
      mapM_ (solveGoal strategy ctx) gs
   `catch` \(X86Error e) -> putStrLn e
 
@@ -233,11 +245,12 @@ solveGoal prover ctx g =
                      putStrLn ", counter-example:"
                      let pp (x,y) = putStrLn ("    " ++ x ++ " = " ++ show y)
                      mapM_ pp a
-  where
-  say c x =
-    do setSGR [SetConsoleIntensity BoldIntensity, SetColor Foreground Vivid c]
-       putStr x
-       setSGR [Reset]
+
+say :: Color -> String -> IO ()
+say c x =
+  do setSGR [SetConsoleIntensity BoldIntensity, SetColor Foreground Vivid c]
+     putStr x
+     setSGR [Reset]
 
 
 

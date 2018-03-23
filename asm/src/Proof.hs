@@ -23,13 +23,28 @@ import Globals
 main :: IO ()
 main =
   do gfmul <- newProof "_GFMUL" satRME spec_GFMUL
-     _ <- prove_Polyval_Horner gfmul
-     _ <- prove_Polyval_Horner_AAD_MSG_LENBLK gfmul
+
+     _ <- newProofSizes "Polyval_Horner"
+            (satUnintSBV yices ["dot"])
+            $ \aadSize _msgSize -> spec_Polyval_Horner gfmul aadSize
+
+     _ <- newProofSizes "Polyval_Horner_AAD_MSG_LENBLK"
+            (satUnintSBV yices ["dot"])
+            $ spec_Polyval_Horner_AAD_MSG_LENBLK gfmul
+
+
+     _ <- newProof "AES_128_ENC_x4"
+           (satUnintSBV z3 [ "aes_round", "aes_final_round" ])
+           spec_AES_128_ENC_x4
+
+     _ <- newProof "AES_KS_ENC_x1" satABC spec_AES_KS_ENC_x1
+
+     _ <- newProofSizes "ENC_MSG_x4"
+            (satUnintSBV z3 [ "aes_round", "aes_final_round" ])
+            $ \_aadSize msgSize -> spec_ENC_MSG_x4 msgSize
+
      -- prove_INIT_Htable
      -- prove_Polyval_Htable
-     _ <- prove_AES_128_ENC_x4
-     _ <- prove_AES_KS_ENC_x1
-     _ <- prove_ENC_MSG_x4
      -- prove_ENC_MSG_x8
 
 
@@ -128,28 +143,30 @@ spec_GFMUL =
 
 
 
-
-prove_Polyval_Horner :: Integer -> IO Integer
-prove_Polyval_Horner gfmul =
-  newProofSizes "Polyval_Horner" strategy $ \aadSize _msgSize ->
+spec_Polyval_Horner ::
+  Integer {- ^ Address of GFMUL -} ->
+  Integer {- ^ Input size -} ->
+  Specification
+spec_Polyval_Horner gfmul size =
   Specification
     { specAllocs =
       [ -- Save 10 registers; 16 bytes local (2 qwords); RET for call
         stackAlloc (10 + 2 + 1)
 
-      , vT   := area "T"   RW 16      Bytes
-      , vH   := area "H"   RO 16      Bytes
-      , vBuf := area "buf" RO aadSize Bytes
+      , vT   := area "T"   RW 16    Bytes
+      , vH   := area "H"   RO 16    Bytes
+      , vBuf := area "buf" RO size  Bytes
       ]
 
-    , specPres = [ checkPre "Invalid AAD Size" (Loc vSize === intLit aadSize) ]
+    , specPres = [ checkPre ("Input size not " ++ show size)
+                            (Loc vSize === intLit size) ]
 
     , specPosts = standardPost ++
         [ checkCryPostDef resLoc
              "Polyval_Horner_def"
-                [ cryArrPre vH   16      Bytes
-                , cryArrPre vBuf aadSize Bytes
-                , cryArrPre vT   16      Bytes
+                [ cryArrPre vH   16   Bytes
+                , cryArrPre vBuf size Bytes
+                , cryArrPre vT   16   Bytes
                 ]
        ]
 
@@ -165,13 +182,13 @@ prove_Polyval_Horner gfmul =
   resLoc :: Loc (LLVMPointerType 128)
   resLoc = inMem vT 0 V128s
 
-  strategy = satUnintSBV yices ["dot"]
 
-
-
-prove_Polyval_Horner_AAD_MSG_LENBLK :: Integer -> IO Integer
-prove_Polyval_Horner_AAD_MSG_LENBLK gfmul =
-  newProofSizes "Polyval_Horner_AAD_MSG_LENBLK" strategy $ \aadSize msgSize ->
+spec_Polyval_Horner_AAD_MSG_LENBLK ::
+  Integer {- ^ Address of GFMUL -} ->
+  Integer {- ^ AAD size -} ->
+  Integer {- ^ message size -} ->
+  Specification
+spec_Polyval_Horner_AAD_MSG_LENBLK gfmul aadSize msgSize =
   Specification
     { specAllocs =
         [ stack
@@ -214,12 +231,13 @@ prove_Polyval_Horner_AAD_MSG_LENBLK gfmul =
   resLoc :: Loc (LLVMPointerType 128)
   resLoc = inMem vT 0 V128s
 
-  strategy = satUnintSBV yices ["dot"]
 
 
-prove_AES_128_ENC_x4 :: IO Integer
-prove_AES_128_ENC_x4 =
-  newProof "AES_128_ENC_x4" strategy
+
+
+
+spec_AES_128_ENC_x4 :: Specification
+spec_AES_128_ENC_x4 =
   Specification
     { specAllocs  = [ stackAlloc 3
                     , vIV   := area "IV"   RO 16        Bytes
@@ -247,13 +265,11 @@ prove_AES_128_ENC_x4 =
 
   res   = inMem vCT 0 Bytes :: Loc (LLVMPointerType (4 * 128))
 
-  strategy = satUnintSBV z3 [ "aes_round", "aes_final_round" ]
 
 
 
-prove_AES_KS_ENC_x1 :: IO Integer
-prove_AES_KS_ENC_x1 =
-  newProof "AES_KS_ENC_x1" strategy
+spec_AES_KS_ENC_x1 :: Specification
+spec_AES_KS_ENC_x1 =
   Specification
     { specAllocs = [ stackAlloc 6
                    , vPT    := area "PT"   RO 16 Bytes
@@ -283,12 +299,12 @@ prove_AES_KS_ENC_x1 =
   res1 = inMem vKeys 0 Bytes :: Loc (LLVMPointerType (11 * 128))
   res2 = inMem vCT   0 Bytes :: Loc (LLVMPointerType 128)
 
-  strategy = satABC
 
 
-prove_ENC_MSG_x4 :: IO Integer
-prove_ENC_MSG_x4 =
-  newProofSizes "ENC_MSG_x4" strategy $ \_aadSize msgSize ->
+spec_ENC_MSG_x4 ::
+  Integer {- ^ Message size -} ->
+  Specification
+spec_ENC_MSG_x4 msgSize =
   Specification
     { specGlobsRO = globals
     , specAllocs =
@@ -320,7 +336,6 @@ prove_ENC_MSG_x4 =
   -- XXX: The 160 here needs to match `msgSize`
   res = inMem vCT 0 Bytes :: Loc (LLVMPointerType (160 * 8))
 
-  strategy = satUnintSBV z3 [ "aes_round", "aes_final_round" ]
 
 
 

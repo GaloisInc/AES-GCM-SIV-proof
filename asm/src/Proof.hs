@@ -22,7 +22,7 @@ import Globals
 
 main :: IO ()
 main =
-  do gfmul <- newProof "_GFMUL" satRME spec_GFMUL
+  do {-gfmul <- newProof "_GFMUL" satRME spec_GFMUL
 
      _ <- newProofSizes "Polyval_Horner"
             (satUnintSBV yices ["dot"])
@@ -42,6 +42,10 @@ main =
      _ <- newProofSizes "ENC_MSG_x4"
             (satUnintSBV z3 [ "aes_round", "aes_final_round" ])
             $ \_aadSize msgSize -> spec_ENC_MSG_x4 msgSize
+-}
+     _ <- newProofSizes "AES_GCM_SIV_Encrypt"
+            (satUnintSBV z3 [ "aes_round", "aes_final_round" ])
+            $ \aadSize msgSize -> spec_AES_GCM_SIV_Encrypt
 
      -- prove_INIT_Htable
      -- prove_Polyval_Htable
@@ -333,8 +337,8 @@ spec_ENC_MSG_x4 msgSize =
   vKeys   = InReg M.RCX
   vMsgLen = InReg M.R8
 
-  -- XXX: The 160 here needs to match `msgSize`
-  res = inMem vCT 0 Bytes :: Loc (LLVMPointerType (160 * 8))
+  -- XXX: The 24 here needs to match `msgSize`
+  res = inMem vCT 0 Bytes :: Loc (LLVMPointerType (24 * 8))
 
 
 
@@ -382,5 +386,39 @@ prove_ENC_MSG_x8 =
      return (r,post)
   where
   strategy = satUnintSBV z3 [ "aes_round", "aes_final_round" ]
+
+{-
+  ( RDI    AES_GCM_SIV_CONTEXT* ctx
+  , RSI    uint8_t* CT
+  , RDX    uint8_t* TAG
+  , RCX    const uint8_t* AAD
+  , R8     const uint8_t* PT
+  , SP(1): size_t L1
+  , SP(2): size_t L2
+  , SP(3): const uint8_t* IV
+  , (unused) const uint8_t* KEY
+  );
+-}
+
+spec_AES_GCM_SIV_Encrypt =
+  Specification
+  { specGlobsRO = globals
+  , specAllocs =
+      [ stack
+      ]
+  , specPres = []
+  , specPosts = standardPost ++ [ ]
+  , specCalls = []
+  }
+
+  where
+  vCtx = InReg M.RDI
+  vCT  = InReg M.RSI
+  vTag = InReg M.RDX
+  vAad = InReg M.RCX
+  vPT  = InReg M.R8
+
+  (arg,stack) = stackAllocArgs 3 32
+
 
 

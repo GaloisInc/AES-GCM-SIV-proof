@@ -1,7 +1,7 @@
 .PHONY: clean
 
 CC=gcc
-CFLAGS=-Wall -Wextra -no-pie -O3 -maes -mavx
+CFLAGS=-Wall -Wextra -no-pie -O3 -maes -mavx -fno-stack-protector
 
 proof_target: \
   GCM_SIV.h GCM_SIV.c main.c \

@@ -81,6 +81,32 @@ polyvalFrom : {n} (fin n) => [128] -> [n][128] -> [128] -> [128]
 polyvalFrom H Xs start = psums ! 0
   where psums = [start] # [ dot (s ^ x) H | s <- psums | x <- Xs ]
 
+//1 is not the identity for dot forcing it in next function instead
+polyvalFromNH : {n, hs} (fin n, fin hs, hs >=n) => [hs][128] -> [n][128] -> [128] -> [128]
+polyvalFromNH Hs Xs start = (sums ! 0) ^ (dot (([1] # Hs) @ `n) start)
+  where sums = [zero] # [ (dot X H) ^ sum
+                    | sum <- sums
+                    | X <- reverse Xs
+                    | H <- Hs ]
+
+
+polyvalHtableNH :
+  {n, hs} (fin n, fin hs, hs >=1) => [hs][128] -> [n][128] -> [128] -> [128]
+polyvalHtableNH Hs Xs start  = result
+  where sums = [start] # [ polyvalFromNH Hs Xchunk sum
+                    | sum <- sums
+                    | (Xchunk) <- (split(take Xs): [n/hs][hs][128])]
+        remainder = (drop Xs : [n % hs][128])
+        result =
+          if width remainder == 0 then
+            sums ! 0
+          else
+            polyvalFromNH Hs remainder (sums!0)
+
+pht : {a} (fin a) => [128] -> [a][128] -> [128] -> Bit
+pht H Xs start = polyvalHtableNH (INIT_Htable H) Xs start ==
+                  polyvalFrom H Xs start
+
 dot : [128] -> [128] -> [128]
 dot x y = mult x (mult y x_neg_128)
   where x_neg_128 = <| 1 + x^^114 + x^^121 + x^^124 + x^^127 |>
@@ -93,27 +119,22 @@ mult x y = pmod (pmult x y) irred
   irred = <| 1 + x^^121 + x^^126 + x^^127 + x^^128 |>
 
 INIT_Htable : {n} (fin n, n>=2) => [128] -> [n][128]
-INIT_Htable H = hs
+INIT_Htable H = take hs
   where
   hs = [H] # [ dot hn H
-                | hn <- hs
-                | (j : [width n]) <- [0..n-2]]
+                | hn <- hs]
 
-polyval_Htable : {n} (fin n, n>=2) => [128] -> [n][128] -> [128]
-polyval_Htable H X = polyval_Htable' X htable
+/*polyval_Htable : {n} (fin n, n>=1) => [128] -> [n][128] -> [128]
+polyval_Htable H X = polyvalHtableNH`{hs=8} htable X
   where
-    htable = INIT_Htable`{n} H
+    htable = INIT_Htable H
 
-polyval_Htable':
-  {n} (fin n, n>=2) => [n][128] -> [n][128] -> [128]
-polyval_Htable' X htable = sums ! 0
-  where
-    sums = [zero] # [ (dot (X@i) (htable!i)) ^ sum
-                    | sum <- sums
-                    | (i : [width n]) <- [0..n-1] ]
 
 // -----------------------------------------------------------------------------
 
+prop_poly : {a} (a >= 1, fin a) => [128] -> [a][128] -> Bit
+prop_poly H X = polyval_Htable H X == polyvalFrom H X zero
+*/
 blockify : {n} (fin n) => [n] -> [n /^ 128][128]
 blockify x = [ byteSwap b | b <- split (x # zero) ]
 

@@ -5,7 +5,7 @@ import AES128
 import AES128_GCM_SIV
 
 // Should match what's in Sizes.hs
-type AAD_Size = 36
+type AAD_Size = 48
 type MSG_Size = 160
 
 dot256 : [256] -> [256] -> [256]
@@ -28,12 +28,12 @@ INIT_Htable_post :
 INIT_Htable_post H result =
   INIT_Htable (leLoad H) == (leLoadArray result)
 
-/*
+
 Polyval_HTable_post :
-  [AAD_Size][8] -> [AAD_Size][8] -> [16][8] -> Bool
-Polyval_HTable_post X tbl result =
-  polyval_Htable' (leLoadArray X) (leLoadArray tbl) == (leLoad result)
-*/
+  [AAD_Size][8] -> [128][8] -> [16][8] -> [16][8] -> Bool
+Polyval_HTable_post X tbl T result =
+  polyvalHtableNH (leLoadBlocks tbl) (leLoadBlocks X) (leLoad T) == (leLoad result)
+
 
 // See `derive_key` in the spec.
 AES_128_ENC_x4_post : [16][8] -> [11 * 16][8] -> [4][128] -> Bool

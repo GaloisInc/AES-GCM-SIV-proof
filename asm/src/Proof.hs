@@ -8,6 +8,7 @@ import SAWScript.Prover.RME(satRME)
 import SAWScript.Prover.ABC(satABC)
 
 import SAWScript.X86Spec.Memory
+import SAWScript.X86Spec(APtr, Bits, writeMem)
 
 import SAWScript.X86SpecNew hiding (cryConst, cryTerm)
 import qualified Data.Macaw.X86.X86Reg as M
@@ -18,7 +19,6 @@ import Globals
 
 main :: IO ()
 main =
-<<<<<<< HEAD
   do -- prove_GFMUL "_GFMUL"
      -- prove_GFMUL "GFMUL"
      -- prove_Polyval_Horner
@@ -30,42 +30,6 @@ main =
      -- prove_ENC_MSG_x4
      -- prove_ENC_MSG_x8
 
-=======
-  do {-gfmul <- newProof "_GFMUL" satRME spec_GFMUL
-
-     _ <- newProofSizes "Polyval_Horner"
-            (satUnintSBV yices ["dot"])
-            $ \aadSize _msgSize -> spec_Polyval_Horner gfmul aadSize
-
-     _ <- newProofSizes "Polyval_Horner_AAD_MSG_LENBLK"
-            (satUnintSBV yices ["dot"])
-            $ spec_Polyval_Horner_AAD_MSG_LENBLK gfmul
-
-
-     _ <- newProof "AES_128_ENC_x4"
-           (satUnintSBV z3 [ "aes_round", "aes_final_round" ])
-           spec_AES_128_ENC_x4
-
-     _ <- newProof "AES_KS_ENC_x1" satABC spec_AES_KS_ENC_x1
-
-     _ <- newProofSizes "ENC_MSG_x4"
-            (satUnintSBV z3 [ "aes_round", "aes_final_round" ])
-            $ \_aadSize msgSize -> spec_ENC_MSG_x4 msgSize
--}
-     _ <- newProofSizes "AES_GCM_SIV_Encrypt"
-            (satUnintSBV z3 [ "aes_round", "aes_final_round" ])
-            $ \aadSize msgSize -> spec_AES_GCM_SIV_Encrypt
-
-     -- prove_INIT_Htable
-     -- prove_Polyval_Htable
-     -- prove_ENC_MSG_x8
-
-
-
-     return ()
-
-
->>>>>>> 6cb5c91bef8ed61f89821f5997247563f19307a8
 prove_INIT_Htable :: IO()
 prove_INIT_Htable =
   let name = "INIT_Htable" in
@@ -91,6 +55,13 @@ prove_INIT_Htable =
   where
   strategy = satUnintSBV z3 ["dot"]
 
+alloc_const :: String -> [Integer] -> Spec Pre(Value APtr, [Value (Bits 8)])
+alloc_const name ints =
+  do
+    pointer <- allocBytes name Mutable (fromIntegral (length ints) .* Byte)
+    vs <- mapM (literalAt Byte) ints
+    writeMem pointer vs
+    return (pointer, vs)
 
 prove_Polyval_Htable :: IO()
 prove_Polyval_Htable =
@@ -98,12 +69,25 @@ prove_Polyval_Htable =
   doProof name strategy $
   do
     aadSize          <- cryConst "AAD_Size"
-    (ptrHtable,htable) <- freshArray "Htbl" (16*8) Byte Immutable
+    -- (ptrHtable,htable) <- freshArray "Htbl" (16*8) Byte Immutable
+    (ptrHtable,htable) <- alloc_const "Htbl"
+            [0xdb, 0x89, 0xac, 0x1d, 0xbd, 0xfb, 0x64, 0x59, 0x1d, 0x77, 0xbe, 0xe5, 0x02, 0x52, 0x1d, 0x55,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
     see "Htable" ptrHtable
-    (ptrT,valT)      <- freshArray "T" 16 Byte Mutable
+    -- (ptrT,valT)      <- freshArray "T" 16 Byte Mutable
+    (ptrT,valT)      <- alloc_const "T"
+      [0x79, 0xc4, 0xe1, 0x47, 0xd4, 0x37, 0xfb, 0xf2, 0x8b, 0xd2, 0x00, 0x88, 0xa0, 0x0a, 0x02, 0x38]
     see "T" ptrT
 
-    (ptrBuf,valBuf)  <- freshArray "buf" aadSize Byte Immutable
+    -- (ptrBuf,valBuf)  <- freshArray "buf" aadSize Byte Immutable
+    (ptrBuf,valBuf)  <- alloc_const "buf"
+      [0xfd, 0x44, 0x21, 0x03, 0x22, 0xa4, 0x80, 0x0a, 0x81, 0xd2, 0x00, 0x58, 0x23, 0x08, 0x93, 0x18]
     see "Buf" ptrBuf
     valSize          <- literalAt QWord aadSize
 
@@ -128,8 +112,7 @@ prove_Polyval_Htable =
 
     return (r,post)
   where
-  --  strategy = satUnintSBV yices []
-      strategy = satABC
+    strategy = satUnintSBV yices []
 
 spec_GFMUL :: Specification
 spec_GFMUL =

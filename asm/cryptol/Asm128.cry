@@ -35,24 +35,36 @@ Polyval_HTable_post X tbl T result =
   polyvalHtableNH (leLoadArray tbl) (leLoadBlocks X) (leLoad T) == (leLoad result)
 
 
+
 // See `derive_key` in the spec.
-AES_128_ENC_x4_post : [16][8] -> [11 * 16][8] -> [4][128] -> Bool
-AES_128_ENC_x4_post iv' keys ct =
-  ct == [ aesWithKeys keys (iv # i) | i <- [ 0 .. 3 ] ]
+AES_128_ENC_x4_def : [16][8] -> [11 * 16][8] -> [4 * 128]
+AES_128_ENC_x4_def iv' keys =
+  leLoad (leStoreArray [ aesWithKeys keys (iv # i) | i <- [ 0 .. 3 ] ])
   where
   _ # (iv : [96]) = leLoad iv'
 
+
 /* Encrypt the pt with the given key, expanding it as you go.
 The result it the encrypted text and the expanded key */
-AES_KS_ENC_x1_post1 : [16][8]  -> [11 * 16][8] -> Bool
-AES_KS_ENC_x1_post1 ikey keys =
-  aesKeyToBytes (ExpandKey (leLoad (reverse ikey))) == keys
+AES_KS_ENC_x1_def1 : [16][8]  -> [11 * 16 * 8]
+AES_KS_ENC_x1_def1 ikey =
+  leLoad (aesKeyToBytes (ExpandKey (leLoad (reverse ikey))))
   // NOTE: It would appear the key expansion in our spec and the
   // one in the code are reversed.
 
-AES_KS_ENC_x1_post2 : [11 * 16][8] -> [16][8] -> [16][8] -> Bool
-AES_KS_ENC_x1_post2 keys pt ct =
-  aesWithKeys keys (leLoad pt) == leLoad ct
+AES_KS_ENC_x1_def2 : [11 * 16][8] -> [16][8] -> [16 * 8]
+AES_KS_ENC_x1_def2 keys pt = aesWithKeys keys (leLoad pt)
+
+
+ENC_MSG_def :
+  [11 * 16][8] -> [16][8] -> [MSG_Size][8] -> [MSG_Size * 8]
+ENC_MSG_def keys tag pt =
+  leLoad (leStoreBlocks (counter_mode K2 (0b1 # tUpper, tLower) M))
+  where
+  K2 = aesKeysFromBytes keys
+  M  = leLoadBlocks pt
+  _ # tUpper # tLower = leLoad tag
+
 
 
 ENC_MSG_post :

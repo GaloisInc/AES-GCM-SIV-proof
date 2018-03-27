@@ -19,26 +19,18 @@ import qualified Data.Macaw.X86.X86Reg as M
 import Utils
 import Globals
 
-
-
-
-
 main :: IO ()
 main =
   do -- prove_GFMUL "_GFMUL"
      -- prove_GFMUL "GFMUL"
      -- prove_Polyval_Horner
-     prove_Polyval_Horner_AAD_MSG_LENBLK
-     --prove_INIT_Htable
-     -- prove_Polyval_Htable
+     --prove_Polyval_Horner_AAD_MSG_LENBLK
+      prove_INIT_Htable
+      prove_Polyval_Htable
      -- prove_AES_128_ENC_x4
      -- prove_AES_KS_ENC_x1
      -- prove_ENC_MSG_x4
      -- prove_ENC_MSG_x8
-
-
-
-
 
 prove_INIT_Htable :: IO()
 prove_INIT_Htable =
@@ -71,11 +63,12 @@ prove_Polyval_Htable =
   let name = "Polyval_Htable" in
   doProof name strategy $
   do
-    (ptrHtable,htable) <- freshArray "Htbl" (16*8) Byte Mutable
+    aadSize          <- cryConst "AAD_Size"
+    (ptrHtable,htable) <- freshArray "Htbl" (16*8) Byte Immutable
     see "Htable" ptrHtable
     (ptrT,valT)      <- freshArray "T" 16 Byte Mutable
     see "T" ptrT
-    aadSize          <- cryConst "AAD_Size"
+
     (ptrBuf,valBuf)  <- freshArray "buf" aadSize Byte Immutable
     see "Buf" ptrBuf
     valSize          <- literalAt QWord aadSize
@@ -96,12 +89,13 @@ prove_Polyval_Htable =
               sI  <- packVec valBuf
               sT' <- packVec =<< readArray Byte ptrT 16
               sTbl <- packVec htable
-              assertPost name "Polyval_HTable_post" [ sI, sTbl, sT' ]
+              sT <- packVec valT
+              assertPost name "Polyval_HTable_post" [ sI, sTbl, sT, sT' ]
 
     return (r,post)
   where
-    strategy = satUnintSBV z3 []
-
+  --  strategy = satUnintSBV yices []
+      strategy = satABC
 
 prove_GFMUL :: ByteString -> IO ()
 prove_GFMUL gfMulVer =

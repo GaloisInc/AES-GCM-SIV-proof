@@ -146,3 +146,13 @@ unblockify xs = take (join [ byteSwap b | b <- xs ])
 byteSwap : {n} (fin n) => [8 * n] -> [8 * n]
 byteSwap xs = join (reverse (split`{each=8} xs))
 
+polnhest1 = polyvalHtableNH`{hs=8,n=1}
+              ([0x551d5202e5be771d5964fbbd1dac89db]#zero)
+              //(INIT_Htable 0x7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e)
+              [0x189308235800d2810a80a422032144fd]
+              (0x38020aa08800d28bf2fb37d447e1c479)
+
+polnhest2 = polyvalFrom
+                0x7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e
+                [0x189308235800d2810a80a422032144fd]
+                (0x38020aa08800d28bf2fb37d447e1c479)

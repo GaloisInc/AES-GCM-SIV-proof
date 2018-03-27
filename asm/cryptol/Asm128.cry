@@ -4,7 +4,6 @@ import X86
 import AES128
 import AES128_GCM_SIV
 
-// Should match what's in Sizes.hs
 type AAD_Size = 16
 type MSG_Size = 160
 

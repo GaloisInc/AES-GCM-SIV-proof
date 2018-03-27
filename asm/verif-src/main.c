@@ -11,7 +11,7 @@
 #ifdef DEBUG
 void print_hex(uint8_t* bytes, size_t size){
   for(uint64_t i = 0; i < size; ++i) {
-    printf("%02x", (uint8_t)bytes[size-i-1] & (uint8_t)0xff);
+    printf("0x%02x, ", (uint8_t)bytes[i] & (uint8_t)0xff);
     if (i % 16 ==15) printf("\n");
   }
   printf("\n");

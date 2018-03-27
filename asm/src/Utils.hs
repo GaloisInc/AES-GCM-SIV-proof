@@ -64,9 +64,12 @@ newProofIO fun strategy pre =
      let elf = "./verif-src/proof_target"
          cry = Just "cryptol/Asm128.cry"
 
-         display _s = do return ()
-                        -- debugPPReg M.RDI s
-
+         display  s = do debugPPReg M.RSP s
+                         debugPPReg M.RDI s
+                         debugPPReg M.RSI s
+                         debugPPReg M.RDX s
+                         debugPPReg M.RCX s
+                         debugPPReg M.R8  s
 
      (ctx, addr, gs) <- proof linuxInfo elf cry (\_ _ -> return Map.empty)
                     Fun { funName = fun
@@ -168,10 +171,10 @@ checkPost x y = (x, y)
 
 checkCryPostDef ::
   (1 <= w, KnownNat w) =>
-  Loc (LLVMPointerType w) -> String -> [CryArg Post] -> (String, Prop Post)
+  V Post (LLVMPointerType w) -> String -> [CryArg Post] -> (String, Prop Post)
 checkCryPostDef l f xs =
   checkPost (show l ++ " is not defined by " ++ show f)
-            (Loc l === CryFun knownNat f xs)
+            (l === CryFun knownNat f xs)
 
 
 

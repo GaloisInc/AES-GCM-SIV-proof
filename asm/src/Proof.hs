@@ -131,7 +131,7 @@ spec_GFMUL =
         , checkPreserves (InReg M.R9)
         , checkPreserves (InReg M.R10)
         , checkPreserves (InReg M.R11)
-        , checkCryPostDef res "dot256" [ cryPre res, cryPre h ]
+        , checkCryPostDef (Loc res) "dot256" [ cryPre res, cryPre h ]
         ]
     , specGlobsRO = globals
     , specCalls = []
@@ -161,7 +161,8 @@ spec_Polyval_Horner gfmul size =
                             (Loc vSize === intLit size) ]
 
     , specPosts = standardPost ++
-        [ checkCryPostDef resLoc
+        [ checkPreserves vT
+        , checkCryPostDef (Loc resLoc)
              "Polyval_Horner_def"
                 [ cryArrPre vH   16   Bytes
                 , cryArrPre vBuf size Bytes
@@ -201,7 +202,8 @@ spec_Polyval_Horner_AAD_MSG_LENBLK gfmul aadSize msgSize =
                  , checkPre "Invalid LEN size" (Loc vPTSz  === intLit msgSize)
                  ]
     , specPosts = standardPost ++
-                [ checkCryPostDef resLoc
+                [ checkPreserves vT
+                , checkCryPostDef (Loc resLoc)
                     "Polyval_Horner_AAD_MSG_def"
                     [ cryArrPre vH      16      Bytes
                     , cryArrPre vAAD    aadSize Bytes
@@ -247,7 +249,8 @@ spec_AES_128_ENC_x4 =
                          $ Loc (inMem vIV 12 Bytes) === litDWord 0
                     ]
     , specPosts   = standardPost ++
-                    [ checkCryPostDef res
+                    [ checkPreserves vCT
+                    , checkCryPostDef (Loc res)
                        "AES_128_ENC_x4_def"
                         [ cryArrPre vIV   16        Bytes
                         , cryArrPre vKeys (11 * 16) Bytes
@@ -279,8 +282,12 @@ spec_AES_KS_ENC_x1 =
     , specGlobsRO = globals
     , specPres = []
     , specPosts = standardPost ++
-        [ checkCryPostDef res1 "AES_KS_ENC_x1_def1" [ cryArrPre vIKey 16 Bytes ]
-        , checkCryPostDef res2 "AES_KS_ENC_x1_def2"
+        [ checkPreserves vKeys
+        , checkPreserves vCT
+        , checkCryPostDef (Loc res1)
+                          "AES_KS_ENC_x1_def1" [ cryArrPre vIKey 16 Bytes ]
+        , checkCryPostDef (Loc res2)
+                          "AES_KS_ENC_x1_def2"
             [ cryArrCur vKeys (11 * 16) Bytes
             , cryArrPre vPT   16        Bytes
             ]
@@ -316,7 +323,8 @@ spec_ENC_MSG_x4 msgSize =
     , specPres =
         [ checkPre "Invalid message size" (Loc vMsgLen === intLit msgSize) ]
     , specPosts = standardPost ++
-        [ checkCryPostDef res "ENC_MSG_def"
+        [ checkPreserves vCT
+        , checkCryPostDef (Loc res) "ENC_MSG_def"
             [ cryArrPre vKeys  (11 * 16) Bytes
             , cryArrPre vTag   16        Bytes
             , cryArrPre vPT    msgSize   Bytes
@@ -388,32 +396,48 @@ prove_ENC_MSG_x8 =
   , RDX    uint8_t* TAG
   , RCX    const uint8_t* AAD
   , R8     const uint8_t* PT
-  , SP(1): size_t L1
-  , SP(2): size_t L2
-  , SP(3): const uint8_t* IV
+  , R9     L1
+  , SP(1): size_t L2
+  , SP(2): const uint8_t* IV
   , (unused) const uint8_t* KEY
   );
 -}
 
-spec_AES_GCM_SIV_Encrypt =
+spec_AES_GCM_SIV_Encrypt aadSize msgSize =
   Specification
   { specGlobsRO = globals
   , specAllocs =
       [ stack
+      -- + space for nr + spece for Htbl
+      , vCtx  := area "Ctx" RO (16 * 15) Bytes
+      , vPT   := area "PT"  RO msgSize   Bytes
+      , vCT   := area "CT"  WO msgSize   Bytes
+      , vTag  := area "TAG" WO 16        Bytes
+      , vAAD  := area "AAD" RO aadSize   Bytes
+      , vIV   := area "IV"  RO 12        Bytes
       ]
-  , specPres = []
+  , specPres = [ checkPre "Invalid AAD size" (Loc vAADSz === intLit aadSize)
+               , checkPre "Invalid MSG size" (Loc vMsgSz === intLit msgSize)
+               ]
   , specPosts = standardPost ++ [ ]
-  , specCalls = []
+  , specCalls =
+      -- [ ("AES_128_ENC_x4", 0x402f66, spec_AES_128_ENC_x4)
+      [ ("AES_128_ENC_x4", 0x4030e6, spec_AES_128_ENC_x4)
+      ]
   }
 
   where
-  vCtx = InReg M.RDI
-  vCT  = InReg M.RSI
-  vTag = InReg M.RDX
-  vAad = InReg M.RCX
-  vPT  = InReg M.R8
+  vCtx    = InReg M.RDI
+  vCT     = InReg M.RSI
+  vTag    = InReg M.RDX
+  vAAD    = InReg M.RCX
+  vPT     = InReg M.R8
+  vAADSz  = InReg M.R9
+  vMsgSz  = arg 0
+  vIV     = arg 1
 
-  (arg,stack) = stackAllocArgs 3 32
+  (arg,stack) = stackAllocArgs 2 100
+  -- (arg,stack) = stackAllocArgs 2 0x58
 
 
 

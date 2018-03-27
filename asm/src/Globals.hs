@@ -59,18 +59,18 @@ setupGlobals =
 
 globals :: [(String,Integer,Unit,[Integer])]
 globals =
-   [ declare "poly"       0x400d40 QWords [ 0x1, 0xc200000000000000 ]
-   , declare "poly"       0x401040 QWords [ 0x1, 0xc200000000000000 ]
+   [ declare "poly"       0x400c30 QWords [ 0x1, 0xc200000000000000 ]
+   -- , declare "poly"       0x401040 QWords [ 0x1, 0xc200000000000000 ]
 
    , declare "OR_MASK"    0x402280 DWords
                             [ 0x00000000,0x00000000,0x00000000,0x80000000 ]
 
-   , declare "one"        0x402290 QWords [1,0]
-   , declare "two"        0x4022a0 QWords [2,0]
-   , declare "three"      0x4022b0 QWords [3,0]
-   , declare "four"       0x4022c0 QWords [4,0]
+   , declare "one"        0x402190 QWords [1,0]
+   , declare "two"        0x4021a0 QWords [2,0]
+   , declare "three"      0x4021b0 QWords [3,0]
+   , declare "four"       0x4021c0 QWords [4,0]
 
-   , declare "OR_MASK"    0x402620 DWords
+   , declare "OR_MASK"    0x402180 DWords
                             [ 0x00000000,0x00000000,0x00000000,0x80000000 ]
    , declare "one"        0x402630 QWords [1,0]
    , declare "two"        0x402640 QWords [2,0]
@@ -82,15 +82,15 @@ globals =
    , declare "eight"      0x4026a0 QWords [8,0]
 
 
-   , declare "mask"       0x402b90 DWords [ 0x0c0f0e0d, 0x0c0f0e0d
+   , declare "mask"       0x402a90 DWords [ 0x0c0f0e0d, 0x0c0f0e0d
                                          , 0x0c0f0e0d, 0x0c0f0e0d ]
-   , declare "con1"       0x402ba0 DWords [ 1, 1, 1, 1 ]
-   , declare "con2"       0x402bb0 DWords [ 0x1b,0x1b,0x1b,0x1b ]
-   , declare "con3"       0x402bc0 Bytes
+   , declare "con1"       0x402aa0 DWords [ 1, 1, 1, 1 ]
+   , declare "con2"       0x402ab0 DWords [ 0x1b,0x1b,0x1b,0x1b ]
+   , declare "con3"       0x402ac0 Bytes
                                   [ -1,-1,-1,-1,-1,-1,-1,-1,4,5,6,7,4,5,6,7]
 
-   , declare "one"        0x402bd0 DWords [ 1, 0, 0, 0 ]
-   , declare "and_mask"   0x402be0 DWords
+   , declare "one"        0x402ad0 DWords [ 1, 0, 0, 0 ]
+   , declare "and_mask"   0x402ae0 DWords
                                    [ 0,0xffffffff, 0xffffffff, 0xffffffff ]
   ]
 

@@ -52,12 +52,12 @@ main =
      _ <- newProofSizes "ENC_MSG_x4"
             (satUnintSBV z3 [ "aes_round", "aes_final_round" ])
             $ \_aadSize msgSize -> spec_ENC_MSG_x4 msgSize
-    -}
+      -}
 
      _ <- newProofSizes "AES_GCM_SIV_Encrypt"
             (satUnintSBV z3 [ "aes_round", "aes_final_round" ])
-            $ \aadSize msgSize -> spec_AES_GCM_SIV_Encrypt aadSize msgSize
-
+            $ \aadSize msgSize -> spec_AES_GCM_SIV_Encrypt
+                                      (error "GFMUL")  aadSize msgSize
      -- prove_INIT_Htable
      -- prove_Polyval_Htable
      -- prove_ENC_MSG_x8
@@ -326,7 +326,10 @@ spec_AES_KS_ENC_x1 =
 spec_ENC_MSG_x4 ::
   Integer {- ^ Message size -} ->
   Specification
-spec_ENC_MSG_x4 msgSize =
+spec_ENC_MSG_x4 msgSize
+  | msgSize /= 24 = error "PLEASE UPDATE MESSAGE SIZE: it is 24 now"
+  | otherwise =
+
   Specification
     { specGlobsRO = globals
     , specAllocs =
@@ -406,25 +409,14 @@ prove_ENC_MSG_x8 =
   where
   strategy = satUnintSBV z3 [ "aes_round", "aes_final_round" ]
 
-{-
-  ( RDI    AES_GCM_SIV_CONTEXT* ctx
-  , RSI    uint8_t* CT
-  , RDX    uint8_t* TAG
-  , RCX    const uint8_t* AAD
-  , R8     const uint8_t* PT
-  , R9     L1
-  , SP(1): size_t L2
-  , SP(2): const uint8_t* IV
-  , (unused) const uint8_t* KEY
-  );
--}
 
-spec_AES_GCM_SIV_Encrypt aadSize msgSize =
+
+
+spec_AES_GCM_SIV_Encrypt gfmul aadSize msgSize =
   Specification
   { specGlobsRO = globals
   , specAllocs =
       [ stack
-      -- + space for nr + spece for Htbl
       , vCtx  := area "Ctx" RO (16 * 15) Bytes
       , vPT   := area "PT"  RO msgSize   Bytes
       , vCT   := area "CT"  WO msgSize   Bytes
@@ -435,10 +427,15 @@ spec_AES_GCM_SIV_Encrypt aadSize msgSize =
   , specPres = [ checkPre "Invalid AAD size" (Loc vAADSz === intLit aadSize)
                , checkPre "Invalid MSG size" (Loc vMsgSz === intLit msgSize)
                ]
-  , specPosts = standardPost ++ [ ]
+  , specPosts = standardPost ++
+                [
+                ]
   , specCalls =
-      -- [ ("AES_128_ENC_x4", 0x402f66, spec_AES_128_ENC_x4)
-      [ ("AES_128_ENC_x4", 0x4030e6, spec_AES_128_ENC_x4)
+      [ ("AES_128_ENC_x4", 0x402fa6, spec_AES_128_ENC_x4)
+      , ("Polyval_Horner_AAD_MSG_LENBLK", 0x400b9b,
+            spec_Polyval_Horner_AAD_MSG_LENBLK gfmul aadSize msgSize)
+      , ("AES_KS_ENC_x1", 0x402a2d, spec_AES_KS_ENC_x1)
+      , ("ENC_MSG_x4",    0x402010, spec_ENC_MSG_x4 msgSize)
       ]
   }
 
@@ -452,8 +449,6 @@ spec_AES_GCM_SIV_Encrypt aadSize msgSize =
   vMsgSz  = arg 0
   vIV     = arg 1
 
-  (arg,stack) = stackAllocArgs 2 100
-  -- (arg,stack) = stackAllocArgs 2 0x58
-
+  (arg,stack) = stackAllocArgs 2 62
 
 

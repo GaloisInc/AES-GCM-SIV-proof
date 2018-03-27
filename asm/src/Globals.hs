@@ -60,7 +60,7 @@ setupGlobals =
 
 globals :: [(String,Integer,Unit,[Integer])]
 globals =
-   [ declare "poly"       0x400c30 QWords [ 0x1, 0xc200000000000000 ]
+   [ declare "poly"       0x400c40 QWords [ 0x1, 0xc200000000000000 ]
    -- , declare "poly"       0x401040 QWords [ 0x1, 0xc200000000000000 ]
 
    , declare "OR_MASK"    0x402280 DWords
@@ -93,6 +93,9 @@ globals =
    , declare "one"        0x402ad0 DWords [ 1, 0, 0, 0 ]
    , declare "and_mask"   0x402ae0 DWords
                                    [ 0,0xffffffff, 0xffffffff, 0xffffffff ]
+
+  , declare "some_fs"     0x0403500 DWords
+                                   [ 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff ]
   ]
 
   where

@@ -12,7 +12,7 @@ module AES128_GCM_SIV where
 
 import AES128 as AES
 
-type AAD  = 36
+type AAD  = 32
 
 type K  = 128
 type KS = AES::KeySchedule
@@ -44,12 +44,18 @@ expandKey1 k = AES::ExpandKey (byteSwap k)
 
 /** See Figure 2 in Section 4 */
 derive_key : [K] -> [96] -> ([128], KS)
-derive_key K N = (mkKey parts1, expandKey1 (mkKey parts2))
+derive_key K N = derive_key_expanded (expandKey1 1) N
+
+/** See Figure 2 in Section 4 */
+derive_key_expanded : KS -> [96] -> ([128], KS)
+derive_key_expanded ks N = (mkKey parts1, expandKey1 (mkKey parts2))
   where
-  parts1 # parts2 = [ drop (aes (expandKey1 K) (N # i)) | i <- take [ 0 ... ]  ]
+  parts1 # parts2 = [ drop (aes ks (N # i)) | i <- take [ 0 ... ]  ]
 
   mkKey : {n} (fin n) => [n][64] -> [64 * n]
   mkKey xs = join (reverse xs)
+
+
 
 
 /** See Figure 1 in Section 3 */

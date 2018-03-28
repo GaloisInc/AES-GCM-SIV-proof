@@ -4,7 +4,7 @@ import X86
 import AES128
 import AES128_GCM_SIV
 
-type AAD_Size = 16
+type AAD_Size = 4
 type MSG_Size = 24
 
 dot256 : [256] -> [256] -> [256]
@@ -75,8 +75,14 @@ ENC_MSG_post keys tag pt ct =
   M  = leLoadBlocks pt
   _ # tUpper # tLower = leLoad tag
 
-
-
+AES_GMC_SIV_Encrypt_pair :
+  [11 * 16][8] -> [12][8] -> [AAD_Size][8] -> [MSG_Size][8] ->
+                                                    ([8 * MSG_Size], [128])
+AES_GMC_SIV_Encrypt_pair keys iv aad pt =
+  gcm_siv_plus ks nonce (leLoad aad) (leLoad pt)
+  where
+  ks    = derive_key_expanded (aesKeysFromBytes keys) nonce
+  nonce = leLoad iv
 
 
 // -----------------------------------------------------------------------------

@@ -24,18 +24,20 @@ int main(int argc, char* argv[]) {
 
 
 #ifdef DEBUG
-  uint8_t keys[11 * 16] = { 0 };
-  uint8_t iv[12] = { 0 } ;
-  uint8_t aad[4] = { 0 } ;
-  uint8_t msg[24] = { 0 } ;
-  uint8_t ct [24] = { 0 } ;
-  uint8_t tag [16] = { 0 } ;
-  int i = 0;
+  uint8_t table[8 * 16] = { 0 };
+  uint8_t msg[4] = { 0 } ;
+  uint8_t T[16] = { 0 };
+  int i;
 
-  AES_GCM_SIV_Encrypt ((AES_GCM_SIV_CONTEXT*) keys, ct, tag, aad, msg, 4, 24, iv, NULL);
+  table[0] = 1;
+  table[1] = 1;
 
-  for (i = 0; i < 24; ++i)
-    printf ("%x ", ct[i]);
+  msg[3] = 1;
+
+  Polyval_Htable(table,msg,4,T);
+
+  for (i = 0; i < 16; ++i)
+    printf ("%x ", T[i]);
   printf ("\n");
   return 0;
 

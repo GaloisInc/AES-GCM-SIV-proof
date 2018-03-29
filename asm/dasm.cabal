@@ -16,7 +16,7 @@ cabal-version:       >=1.10
 executable Proof
   main-is:             Proof.hs
   hs-source-dirs:      src
-  other-modules:       Utils, Globals, Overrides
+  other-modules:       Utils, Globals
   build-depends:       base >=4.10 && <4.11, bytestring, saw-script, saw-core,
                        parameterized-utils, containers,
                        macaw-x86, macaw-x86-symbolic, crucible, crucible-llvm,

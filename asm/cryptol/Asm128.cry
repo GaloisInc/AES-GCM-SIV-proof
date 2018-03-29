@@ -4,8 +4,8 @@ import X86
 import AES128
 import AES128_GCM_SIV
 
-type AAD_Size = 4     /* Bytes */
-type MSG_Size = 24    /* Bytes */
+type AAD_Size = 4  /* Bytes */
+type MSG_Size = 64 /* Bytes */
 
 dot256 : [256] -> [256] -> [256]
 dot256 (_ # res) (_ # h) = 0 # dot res h
@@ -23,10 +23,19 @@ Polyval_Horner_AAD_MSG_def h aad pt lblk t =
        # leLoadBlocks pt
        # leLoadBlocks [ b | qword <- lblk, b <- leStore qword ]
 
-INIT_Htable_post :
-  [16][8] -> [128][8] -> Bool
-INIT_Htable_post H result =
-  INIT_Htable (leLoad H) == (leLoadArray result)
+INIT_Htable_def: [1][128] -> [8][128]
+INIT_Htable_def [h] = INIT_Htable h
+
+Polyval_HTable_gen_def :
+  {n} (fin n) => [8][128] -> [n][8] -> [1][128] -> [1][128]
+Polyval_HTable_gen_def tbl data [T] =
+  [ polyvalHtableNH tbl (leLoadBlocks data) T ]
+
+Polyval_HTable_16_def : [8][128] -> [16][8] -> [1][128] -> [1][128]
+Polyval_HTable_16_def = Polyval_HTable_gen_def `{16}
+
+Polyval_HTable_4_def : [8][128] -> [4][8] -> [1][128] -> [1][128]
+Polyval_HTable_4_def = Polyval_HTable_gen_def `{4}
 
 
 Polyval_HTable_post :

@@ -5,8 +5,6 @@ import SAWScript.Prover.SBV(satUnintSBV,z3,yices)
 import SAWScript.Prover.RME(satRME)
 import SAWScript.Prover.ABC(satABC)
 
-import SAWScript.X86Spec.Memory
-
 import SAWScript.X86SpecNew hiding (cryConst, cryTerm)
 import qualified Data.Macaw.X86.X86Reg as M
 
@@ -39,6 +37,21 @@ main =
             (satUnintSBV z3 [ "aes_round", "aes_final_round" ])
             $ \_aadSize msgSize -> spec_ENC_MSG_x4 msgSize
 
+     -- Used for larger sizes
+     fun_ENC_MSG_x8 <- newProofSizes "ENC_MSG_x8"
+            (satUnintSBV z3 [ "aes_round", "aes_final_round" ])
+            $ \_aadSize msgSize -> spec_ENC_MSG_x8 msgSize
+
+     fun_INIT_Htable <- newProof "INIT_Htable"
+            (satUnintSBV z3 ["dot"])
+            (spec_INIT_Htable 0x4013f4)
+
+{- XXX: We get a counter example here: check with Joey's spec
+    _ <- newProof "Polyval_Htable"
+         satABC
+         (spec_Polyval_Htable 4)
+-}
+
      _ <- newProofSizes "AES_GCM_SIV_Encrypt"
             (satUnintSBV z3 [ "aes", "ExpandKey"
                             , "polyvalFrom", "counter_mode" ])
@@ -50,94 +63,60 @@ main =
                                       fun_ENC_MSG_x4
                                       aadSize msgSize
 
-
-{-
-     -- prove_ENC_MSG_x8 -- XXX: we are getting a global in region 5??
-     -- prove_INIT_Htable
-     -- prove_Polyval_Htable
--}
-
-
      return ()
 
 
-prove_INIT_Htable :: IO()
-prove_INIT_Htable =
-  let name = "INIT_Htable" in
-  doProof name strategy $
-  do
-    (htblPtr,htbl) <- freshArray "Htbl" (16*8) Byte Mutable
-    (hPtr,h) <- freshArray "H" 16  Byte Immutable
-
-    let gpRegs r = case r of
-                    RDI -> gpUse htblPtr
-                    RSI -> gpUse hPtr
-                    _   -> GPFresh AsBits
-
-    (_, r, basicPost) <- setupContext 0 0 gpRegs (const Nothing)
-
-    let post =
-          do  basicPost
-              sawRes <- packVec =<< readArray Byte htblPtr 128
-              sawH <- packVec h
-              assertPost name "INIT_Htable_post" [ sawH, sawRes ]
-
-    return (r, post)
+spec_INIT_Htable :: Integer -> Specification
+spec_INIT_Htable gfmul =
+  Specification
+    { specGlobsRO = globals
+    , specAllocs  =
+        [ stackAlloc 1
+        , vH   := area "H"   RO 1  V128s
+        , vTab := area "TAB" WO 8  V128s
+        ]
+    , specPres = []
+    , specPosts = standardPost ++
+          [ checkCryPointsTo (PreLoc vTab) 8 V128s
+             "INIT_Htable_def" [ CryArrPre (PreLoc vH) 1 V128s ]
+          ]
+    , specCalls =
+         [ ("GFMUL", gfmul, spec_GFMUL) ]
+    }
   where
-  strategy = satUnintSBV z3 ["dot"]
+  vTab = InReg M.RDI
+  vH   = InReg M.RSI
 
 
-prove_Polyval_Htable :: IO()
-prove_Polyval_Htable =
-  let name = "Polyval_Htable" in
-  doProof name strategy $
-  do
-    aadSize          <- cryConst "AAD_Size"
-    (ptrHtable,htable) <- freshArray "Htbl" (16*8) Byte Immutable
-    -- (ptrHtable,htable) <- alloc_const "Htbl"
-    --         [0xdb, 0x89, 0xac, 0x1d, 0xbd, 0xfb, 0x64, 0x59, 0x1d, 0x77, 0xbe, 0xe5, 0x02, 0x52, 0x1d, 0x55,
-    --         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    --         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    --         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    --         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    --         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    --         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    --         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
-    see "Htable" ptrHtable
-    (ptrT,valT)      <- freshArray "T" 16 Byte Mutable
-    -- (ptrT,valT)      <- alloc_const "T"
-    --   [0x79, 0xc4, 0xe1, 0x47, 0xd4, 0x37, 0xfb, 0xf2, 0x8b, 0xd2, 0x00, 0x88, 0xa0, 0x0a, 0x02, 0x38]
-    -- see "T" ptrT
-
-    (ptrBuf,valBuf)  <- freshArray "buf" aadSize Byte Immutable
-    -- (ptrBuf,valBuf)  <- alloc_const "buf"
-    --   [0xfd, 0x44, 0x21, 0x03, 0x22, 0xa4, 0x80, 0x0a, 0x81, 0xd2, 0x00, 0x58, 0x23, 0x08, 0x93, 0x18]
-    see "Buf" ptrBuf
-    valSize          <- literalAt QWord aadSize
-
-    let gpRegs r =
-          case r of
-            RDI -> gpUse ptrHtable
-            RSI -> gpUse ptrBuf
-            RDX -> gpUse valSize
-            RCX -> gpUse ptrT
-            _   -> GPFresh AsBits
-
--- Save 12 registers; 16 bytes local (2 qwords); RET for call
-    (_,r,basicPost) <- setupContext 0 (12 + 2) gpRegs (const Nothing)
-
-    let post =
-          do  basicPost
-              sI  <- packVec valBuf
-              sT' <- packVec =<< readArray Byte ptrT 16
-              sTbl <- packVec htable
-              sT <- packVec valT
-              assertPost name "Polyval_HTable_post" [ sI, sTbl, sT, sT' ]
-
-    return (r,post)
+spec_Polyval_Htable :: Integer -> Specification
+spec_Polyval_Htable size =
+  Specification
+    { specGlobsRO = globals
+    , specAllocs =
+        [ stackAlloc (12 + 2)
+        , vHtable := area "Htbl" RO 8     V128s
+        , vT      := area "T"    RW 1     V128s
+        , vBuf    := area "Buf"  RO size  Bytes
+        ]
+    , specPres = [ checkPre "Invalid size" (Loc vSize === intLit size) ]
+    , specPosts = standardPost ++
+        [ checkCryPointsTo (PreLoc vT) 1 V128s
+            ("Polyval_HTable_" ++ show size ++ "_def")
+              [ CryArrPre (PreLoc vHtable) 8    V128s
+              , CryArrPre (PreLoc vBuf)    size Bytes
+              , CryArrPre (PreLoc vT)      1    V128s
+              ]
+        ]
+    , specCalls = []
+    }
   where
-   -- strategy = satUnintSBV yices ["pmult"]
-   strategy = satRME
+  vHtable = InReg M.RDI
+  vBuf    = InReg M.RSI
+  vSize   = InReg M.RDX
+  vT      = InReg M.RCX
+
+
+
 
 spec_GFMUL :: Specification
 spec_GFMUL =
@@ -349,46 +328,37 @@ spec_ENC_MSG_x4 msgSize =
   vMsgLen = InReg M.R8
 
 
+spec_ENC_MSG_x8 :: Integer -> Specification
+spec_ENC_MSG_x8 msgSize =
+  Specification
+    { specGlobsRO = globals
+    , specAllocs  =
+        [ stackAlloc (12 + 16 + 8 + 2)
+        , vPT   := area "PT"   RO msgSize Bytes
+        , vCT   := area "CT"   WO msgSize Bytes
+        , vTAG  := area "TAG"  RO 16      Bytes
+        , vKeys := area "Keys" RO 11      V128s
+        ]
+    , specPres = [ checkPre "Invalid message lenght"
+                            (Loc vMsgL === intLit msgSize) ]
+    , specPosts = standardPost ++
+        [ checkCryPointsTo (PreLoc vCT) msgSize Bytes
+            "ENC_MSG_def" [ CryArrPre (PreLoc vKeys)  11        V128s
+                          , CryArrPre (PreLoc vTAG)   16        Bytes
+                          , CryArrPre (PreLoc vPT)    msgSize   Bytes
+                          ]
+        ]
+    , specCalls = []
+    }
 
-
-
-
-prove_ENC_MSG_x8 :: IO ()
-prove_ENC_MSG_x8 =
-  let name = "ENC_MSG_x8" in
-  doProof name strategy $
-  do msgSize <- cryConst "MSG_Size"
-     debug ("(Message size = " ++ show msgSize ++ " bytes.)")
-
-     (ptrPT, valPT)     <- freshArray "PT" msgSize Byte Immutable
-     valMsgLen          <- literalAt QWord msgSize
-
-     ptrCT              <- allocBytes "CT" Mutable (msgSize .* Byte)
-     (ptrTAG, valTag)   <- freshArray "TAG" 16 Byte Immutable
-     (ptrKeys, valKeys) <- freshArray "Keys" (11 * 16) Byte Immutable
-
-     let gpRegs r = case r of
-                      RDI -> gpUse ptrPT
-                      RSI -> gpUse ptrCT
-                      RDX -> gpUse ptrTAG
-                      RCX -> gpUse ptrKeys
-                      R8  -> gpUse valMsgLen
-                      _   -> GPFresh AsBits
-
-     (_, r, basicPost) <- setupContext 0 (12 + 16 + 8 + 2)
-                                                  gpRegs (const Nothing)
-
-     let post =
-          do basicPost
-             sPT   <- packVec valPT
-             sCT   <- packVec =<< readArray Byte ptrCT msgSize
-             sTAG  <- packVec valTag
-             sKeys <- packVec valKeys
-             assertPost name "ENC_MSG_post" [ sKeys, sTAG, sPT, sCT ]
-
-     return (r,post)
   where
-  strategy = satUnintSBV z3 [ "aes_round", "aes_final_round" ]
+  vPT   = InReg M.RDI
+  vCT   = InReg M.RSI
+  vTAG  = InReg M.RDX
+  vKeys = InReg M.RCX
+  vMsgL = InReg M.R8
+
+
 
 
 

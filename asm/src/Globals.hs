@@ -29,16 +29,16 @@ setupGlobals =
      declare "three"      0x4022b0 QWord [3,0]
      declare "four"       0x4022c0 QWord [4,0]
 
-     declare "OR_MASK"    0x402620 DWord
+     declare "OR_MASK"    0x402360 DWord
                             [ 0x00000000,0x00000000,0x00000000,0x80000000 ]
-     declare "one"        0x402630 QWord [1,0]
-     declare "two"        0x402640 QWord [2,0]
-     declare "three"      0x402650 QWord [3,0]
-     declare "four"       0x402660 QWord [4,0]
-     declare "five"       0x402670 QWord [5,0]
-     declare "six"        0x402680 QWord [6,0]
-     declare "seven"      0x402690 QWord [7,0]
-     declare "eight"      0x4026a0 QWord [8,0]
+     declare "one"        0x402370 QWord [1,0]
+     declare "two"        0x402380 QWord [2,0]
+     declare "three"      0x402390 QWord [3,0]
+     declare "four"       0x4023a0 QWord [4,0]
+     declare "five"       0x4023b0 QWord [5,0]
+     declare "six"        0x4023c0 QWord [6,0]
+     declare "seven"      0x4023d0 QWord [7,0]
+     declare "eight"      0x4023e0 QWord [8,0]
 
 
 
@@ -94,6 +94,9 @@ globals =
 
   , declare "and_mask_c"  0x0403500 QWords [ 0xffffffffffffffff
                                            , 0x7fffffffffffffff ]
+
+  , declare "shuff_mask" 0x400d80 QWords [ 0x0f0f0f0f0f0f0f0f
+                                         , 0x0f0f0f0f0f0f0f0f ]
   ]
 
   where

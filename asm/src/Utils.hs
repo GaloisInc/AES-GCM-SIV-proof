@@ -59,7 +59,7 @@ newProofIO fun strategy pre =
      let elf = "./verif-src/proof_target"
          cry = Just "cryptol/Asm128.cry"
 
-         -- display _ = return () {-
+         display _ = return () {-
          display  s = do debugPPReg M.RSP s
                          debugPPReg M.RDI s
                          debugPPReg M.RSI s
@@ -194,8 +194,6 @@ say c x =
   do setSGR [SetConsoleIntensity BoldIntensity, SetColor Foreground Vivid c]
      putStr x
      setSGR [Reset]
-
-
 
 ppReason :: Show a => Maybe a -> String
 ppReason x =

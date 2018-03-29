@@ -1,13 +1,12 @@
 {-# Language OverloadedStrings #-}
 module Main where
 
-import SAWScript.Prover.SBV(satUnintSBV,z3,yices)
+import SAWScript.Prover.SBV(satUnintSBV,yices)
 import SAWScript.Prover.RME(satRME)
 import SAWScript.Prover.ABC(satABC)
 
 import SAWScript.X86SpecNew hiding (cryConst, cryTerm)
-import qualified Data.Macaw.X86.X86Reg as M
-
+import Data.Macaw.X86.X86Reg
 
 import Utils
 import Globals
@@ -28,22 +27,22 @@ main =
             $ spec_Polyval_Horner_AAD_MSG_LENBLK fun_GFMUL
 
      fun_AES_128_ENC_x4 <- newProof "AES_128_ENC_x4"
-           (satUnintSBV z3 [ "aes_round", "aes_final_round" ])
+           (satUnintSBV yices [ "aes_round", "aes_final_round" ])
            spec_AES_128_ENC_x4
 
      fun_AES_KS_ENC_x1 <- newProof "AES_KS_ENC_x1" satABC spec_AES_KS_ENC_x1
 
      fun_ENC_MSG_x4 <- newProofSizes "ENC_MSG_x4"
-            (satUnintSBV z3 [ "aes_round", "aes_final_round" ])
+            (satUnintSBV yices [ "aes_round", "aes_final_round" ])
             $ \_aadSize msgSize -> spec_ENC_MSG_x4 msgSize
 
      -- Used for larger sizes
      fun_ENC_MSG_x8 <- newProofSizes "ENC_MSG_x8"
-            (satUnintSBV z3 [ "aes_round", "aes_final_round" ])
+            (satUnintSBV yices [ "aes_round", "aes_final_round" ])
             $ \_aadSize msgSize -> spec_ENC_MSG_x8 msgSize
 
      fun_INIT_Htable <- newProof "INIT_Htable"
-            (satUnintSBV z3 ["dot"])
+            (satUnintSBV yices ["dot"])
             (spec_INIT_Htable 0x4013f4)
 
 {- XXX: We get a counter example here: check with Joey's spec
@@ -53,7 +52,7 @@ main =
 -}
 
      _ <- newProofSizes "AES_GCM_SIV_Encrypt"
-            (satUnintSBV z3 [ "aes", "ExpandKey"
+            (satUnintSBV yices [ "aes", "ExpandKey"
                             , "polyvalFrom", "counter_mode" ])
             $ \aadSize msgSize -> spec_AES_GCM_SIV_Encrypt
                                       fun_GFMUL
@@ -84,8 +83,8 @@ spec_INIT_Htable gfmul =
          [ ("GFMUL", gfmul, spec_GFMUL) ]
     }
   where
-  vTab = InReg M.RDI
-  vH   = InReg M.RSI
+  vTab = InReg RDI
+  vH   = InReg RSI
 
 
 spec_Polyval_Htable :: Integer -> Specification
@@ -110,10 +109,10 @@ spec_Polyval_Htable size =
     , specCalls = []
     }
   where
-  vHtable = InReg M.RDI
-  vBuf    = InReg M.RSI
-  vSize   = InReg M.RDX
-  vT      = InReg M.RCX
+  vHtable = InReg RDI
+  vBuf    = InReg RSI
+  vSize   = InReg RDX
+  vT      = InReg RCX
 
 
 
@@ -126,23 +125,23 @@ spec_GFMUL =
     , specPosts   =
         standardPost ++
         [ checkPreserves h
-        , checkPreserves (InReg M.RAX)
-        , checkPreserves (InReg M.RCX)
-        , checkPreserves (InReg M.RDX)
-        , checkPreserves (InReg M.RDI)
-        , checkPreserves (InReg M.RSI)
-        , checkPreserves (InReg M.R8)
-        , checkPreserves (InReg M.R9)
-        , checkPreserves (InReg M.R10)
-        , checkPreserves (InReg M.R11)
+        , checkPreserves (InReg RAX)
+        , checkPreserves (InReg RCX)
+        , checkPreserves (InReg RDX)
+        , checkPreserves (InReg RDI)
+        , checkPreserves (InReg RSI)
+        , checkPreserves (InReg R8)
+        , checkPreserves (InReg R9)
+        , checkPreserves (InReg R10)
+        , checkPreserves (InReg R11)
         , checkCryPostDef (Loc res) "dot256" [ cryPre res, cryPre h ]
         ]
     , specGlobsRO = globals
     , specCalls = []
     }
   where
-  res = InReg (M.YMM 0)
-  h   = InReg (M.YMM 1)
+  res = InReg (YMM 0)
+  h   = InReg (YMM 1)
 
 
 
@@ -177,10 +176,10 @@ spec_Polyval_Horner gfmul size =
     , specCalls = [ ("GFMUL", gfmul, spec_GFMUL) ]
     }
   where
-  vT    = InReg M.RDI
-  vH    = InReg M.RSI
-  vBuf  = InReg M.RDX
-  vSize = InReg M.RCX
+  vT    = InReg RDI
+  vH    = InReg RSI
+  vBuf  = InReg RDX
+  vSize = InReg RCX
 
 
 
@@ -218,12 +217,12 @@ spec_Polyval_Horner_AAD_MSG_LENBLK gfmul aadSize msgSize =
     }
 
   where
-  vT      = InReg M.RDI
-  vH      = InReg M.RSI
-  vAAD    = InReg M.RDX
-  vAADSz  = InReg M.RCX
-  vPT     = InReg M.R8
-  vPTSz   = InReg M.R9
+  vT      = InReg RDI
+  vH      = InReg RSI
+  vAAD    = InReg RDX
+  vAADSz  = InReg RCX
+  vPT     = InReg R8
+  vPTSz   = InReg R9
   vLenBlk = arg 0
 
   (arg,stack) = stackAllocArgs 1 (12 + 2 + 1)
@@ -256,9 +255,9 @@ spec_AES_128_ENC_x4 =
     }
 
   where
-  vIV   = InReg M.RDI
-  vCT   = InReg M.RSI
-  vKeys = InReg M.RDX
+  vIV   = InReg RDI
+  vCT   = InReg RSI
+  vKeys = InReg RDX
 
 
 
@@ -287,11 +286,11 @@ spec_AES_KS_ENC_x1 =
     }
 
   where
-  vPT   = InReg M.RDI
-  vCT   = InReg M.RSI
+  vPT   = InReg RDI
+  vCT   = InReg RSI
   -- RDX: unused parameter
-  vKeys = InReg M.RCX
-  vIKey = InReg M.R8
+  vKeys = InReg RCX
+  vIKey = InReg R8
 
 
 
@@ -321,11 +320,11 @@ spec_ENC_MSG_x4 msgSize =
     }
 
   where
-  vPT     = InReg M.RDI
-  vCT     = InReg M.RSI
-  vTag    = InReg M.RDX
-  vKeys   = InReg M.RCX
-  vMsgLen = InReg M.R8
+  vPT     = InReg RDI
+  vCT     = InReg RSI
+  vTag    = InReg RDX
+  vKeys   = InReg RCX
+  vMsgLen = InReg R8
 
 
 spec_ENC_MSG_x8 :: Integer -> Specification
@@ -352,11 +351,11 @@ spec_ENC_MSG_x8 msgSize =
     }
 
   where
-  vPT   = InReg M.RDI
-  vCT   = InReg M.RSI
-  vTAG  = InReg M.RDX
-  vKeys = InReg M.RCX
-  vMsgL = InReg M.R8
+  vPT   = InReg RDI
+  vCT   = InReg RSI
+  vTAG  = InReg RDX
+  vKeys = InReg RCX
+  vMsgL = InReg R8
 
 
 
@@ -431,12 +430,12 @@ spec_AES_GCM_SIV_Encrypt
   }
 
   where
-  vCtx    = InReg M.RDI
-  vCT     = InReg M.RSI
-  vTag    = InReg M.RDX
-  vAAD    = InReg M.RCX
-  vPT     = InReg M.R8
-  vAADSz  = InReg M.R9
+  vCtx    = InReg RDI
+  vCT     = InReg RSI
+  vTag    = InReg RDX
+  vAAD    = InReg RCX
+  vPT     = InReg R8
+  vAADSz  = InReg R9
   vMsgSz  = arg 0
   vIV     = arg 1
 

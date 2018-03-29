@@ -1,7 +1,5 @@
-{-# Language OverloadedStrings, DataKinds, TypeOperators #-}
+{-# Language OverloadedStrings #-}
 module Main where
-
-import GHC.TypeLits(type (*))
 
 import SAWScript.Prover.SBV(satUnintSBV,z3,yices)
 import SAWScript.Prover.RME(satRME)
@@ -17,51 +15,47 @@ import Utils
 import Globals
 
 
-{-
-NOTE: all the proofs have some extra preservation post-conditions.
-The reason these are there is due to some limitiation in our post-condition
-language.  In particular, we have no way to refer to a location in memory
-in the post condition, as seen through a register in the pre-condition.
-
-As it happens, all functions preserve the value of the register containing
-the original pointer.  So, we just prove that this is the case, and then
-we use the value of the register from the post condition.
-
-This is something that should be fixed, eventually.
--}
-
-
 main :: IO ()
 main =
-  do {-gfmul <- newProof "_GFMUL" satRME spec_GFMUL
+  do fun_GFMUL <- newProof "_GFMUL" satRME spec_GFMUL
 
+     -- used in Decrypt
      _ <- newProofSizes "Polyval_Horner"
             (satUnintSBV yices ["dot"])
-            $ \aadSize _msgSize -> spec_Polyval_Horner gfmul aadSize
+            $ \aadSize _msgSize -> spec_Polyval_Horner fun_GFMUL aadSize
 
-     _ <- newProofSizes "Polyval_Horner_AAD_MSG_LENBLK"
+     fun_Polyval_Horner_AAD_MSG_LENBLK <-
+        newProofSizes "Polyval_Horner_AAD_MSG_LENBLK"
             (satUnintSBV yices ["dot"])
-            $ spec_Polyval_Horner_AAD_MSG_LENBLK gfmul
+            $ spec_Polyval_Horner_AAD_MSG_LENBLK fun_GFMUL
 
-
-     _ <- newProof "AES_128_ENC_x4"
+     fun_AES_128_ENC_x4 <- newProof "AES_128_ENC_x4"
            (satUnintSBV z3 [ "aes_round", "aes_final_round" ])
            spec_AES_128_ENC_x4
-     _ <- newProof "AES_KS_ENC_x1" satABC spec_AES_KS_ENC_x1
 
-     _ <- newProofSizes "ENC_MSG_x4"
+     fun_AES_KS_ENC_x1 <- newProof "AES_KS_ENC_x1" satABC spec_AES_KS_ENC_x1
+
+     fun_ENC_MSG_x4 <- newProofSizes "ENC_MSG_x4"
             (satUnintSBV z3 [ "aes_round", "aes_final_round" ])
             $ \_aadSize msgSize -> spec_ENC_MSG_x4 msgSize
-      -}
 
      _ <- newProofSizes "AES_GCM_SIV_Encrypt"
-            (satUnintSBV z3 [ "aes_round", "aes_final_round" ])
+            (satUnintSBV z3 [ "aes", "ExpandKey"
+                            , "polyvalFrom", "counter_mode" ])
             $ \aadSize msgSize -> spec_AES_GCM_SIV_Encrypt
-                                      (error "GFMUL")  aadSize msgSize
+                                      fun_GFMUL
+                                      fun_Polyval_Horner_AAD_MSG_LENBLK
+                                      fun_AES_128_ENC_x4
+                                      fun_AES_KS_ENC_x1
+                                      fun_ENC_MSG_x4
+                                      aadSize msgSize
+
+
+{-
+     -- prove_ENC_MSG_x8 -- XXX: we are getting a global in region 5??
      -- prove_INIT_Htable
      -- prove_Polyval_Htable
-     -- prove_ENC_MSG_x8
-
+-}
 
 
      return ()
@@ -192,12 +186,11 @@ spec_Polyval_Horner gfmul size =
                             (Loc vSize === intLit size) ]
 
     , specPosts = standardPost ++
-        [ checkPreserves vT
-        , checkCryPostDef (Loc resLoc)
+        [ checkCryPointsTo (PreLoc vT) 1 V128s
              "Polyval_Horner_def"
-                [ cryArrPre vH   16   Bytes
-                , cryArrPre vBuf size Bytes
-                , cryArrPre vT   16   Bytes
+                [ CryArrPre (PreLoc vH)   16   Bytes
+                , CryArrPre (PreLoc vBuf) size Bytes
+                , CryArrPre (PreLoc vT)   16   Bytes
                 ]
        ]
 
@@ -210,8 +203,6 @@ spec_Polyval_Horner gfmul size =
   vBuf  = InReg M.RDX
   vSize = InReg M.RCX
 
-  resLoc :: Loc (LLVMPointerType 128)
-  resLoc = inMem vT 0 V128s
 
 
 spec_Polyval_Horner_AAD_MSG_LENBLK ::
@@ -233,14 +224,13 @@ spec_Polyval_Horner_AAD_MSG_LENBLK gfmul aadSize msgSize =
                  , checkPre "Invalid LEN size" (Loc vPTSz  === intLit msgSize)
                  ]
     , specPosts = standardPost ++
-                [ checkPreserves vT
-                , checkCryPostDef (Loc resLoc)
+                [ checkCryPointsTo (PreLoc vT) 1 V128s
                     "Polyval_Horner_AAD_MSG_def"
-                    [ cryArrPre vH      16      Bytes
-                    , cryArrPre vAAD    aadSize Bytes
-                    , cryArrPre vPT     msgSize Bytes
-                    , cryArrPre vLenBlk 2       QWords
-                    , cryArrPre vT      16      Bytes
+                    [ CryArrPre (PreLoc vH)      16      Bytes
+                    , CryArrPre (PreLoc vAAD)    aadSize Bytes
+                    , CryArrPre (PreLoc vPT)     msgSize Bytes
+                    , CryArrPre (PreLoc vLenBlk) 2       QWords
+                    , CryArrPre (PreLoc vT)      16      Bytes
                     ]
                 ]
 
@@ -260,10 +250,6 @@ spec_Polyval_Horner_AAD_MSG_LENBLK gfmul aadSize msgSize =
   (arg,stack) = stackAllocArgs 1 (12 + 2 + 1)
   -- Save 12 registers, 16 bytes local (2 qwords); ret for call
 
-  resLoc :: Loc (LLVMPointerType 128)
-  resLoc = inMem vT 0 V128s
-
-
 
 
 
@@ -272,19 +258,18 @@ spec_AES_128_ENC_x4 :: Specification
 spec_AES_128_ENC_x4 =
   Specification
     { specAllocs  = [ stackAlloc 3
-                    , vIV   := area "IV"   RO 16        Bytes
-                    , vCT   := area "CT"   WO 4         V128s
-                    , vKeys := area "Keys" RO (11 * 16) Bytes
+                    , vIV   := area "IV"   RO 16 Bytes
+                    , vCT   := area "CT"   WO 4  V128s
+                    , vKeys := area "Keys" RO 11 V128s
                     ]
     , specPres    = [ checkPre "IV not 0 padded"
                          $ Loc (inMem vIV 12 Bytes) === litDWord 0
                     ]
     , specPosts   = standardPost ++
-                    [ checkPreserves vCT
-                    , checkCryPostDef (Loc res)
+                    [ checkCryPointsTo (PreLoc vCT) 4 V128s
                        "AES_128_ENC_x4_def"
-                        [ cryArrPre vIV   16        Bytes
-                        , cryArrPre vKeys (11 * 16) Bytes
+                        [ CryArrPre (PreLoc vIV)   16  Bytes
+                        , CryArrPre (PreLoc vKeys) 11  V128s
                         ]
                     ]
     , specGlobsRO = globals
@@ -295,9 +280,6 @@ spec_AES_128_ENC_x4 =
   vIV   = InReg M.RDI
   vCT   = InReg M.RSI
   vKeys = InReg M.RDX
-
-  res   = inMem vCT 0 Bytes :: Loc (LLVMPointerType (4 * 128))
-
 
 
 
@@ -313,15 +295,14 @@ spec_AES_KS_ENC_x1 =
     , specGlobsRO = globals
     , specPres = []
     , specPosts = standardPost ++
-        [ checkPreserves vKeys
-        , checkPreserves vCT
-        , checkCryPostDef (Loc res1)
-                          "AES_KS_ENC_x1_def1" [ cryArrPre vIKey 16 Bytes ]
-        , checkCryPostDef (Loc res2)
-                          "AES_KS_ENC_x1_def2"
-            [ cryArrCur vKeys (11 * 16) Bytes
-            , cryArrPre vPT   16        Bytes
-            ]
+        [ checkCryPointsTo (PreLoc vKeys) 11 V128s
+          "AES_KS_ENC_x1_def1" [ CryArrPre (PreLoc vIKey) 16 Bytes ]
+
+        , checkCryPointsTo (PreLoc vCT) 1 V128s
+           "AES_KS_ENC_x1_def2"
+              [ CryArrCur (PreLoc vKeys) 11 V128s
+              , CryArrPre (PreLoc vPT)   16 Bytes
+              ]
         ]
     , specCalls = []
     }
@@ -333,18 +314,12 @@ spec_AES_KS_ENC_x1 =
   vKeys = InReg M.RCX
   vIKey = InReg M.R8
 
-  res1 = inMem vKeys 0 Bytes :: Loc (LLVMPointerType (11 * 128))
-  res2 = inMem vCT   0 Bytes :: Loc (LLVMPointerType 128)
-
 
 
 spec_ENC_MSG_x4 ::
   Integer {- ^ Message size -} ->
   Specification
-spec_ENC_MSG_x4 msgSize
-  | msgSize /= 24 = error "PLEASE UPDATE MESSAGE SIZE: it is 24 now"
-  | otherwise =
-
+spec_ENC_MSG_x4 msgSize =
   Specification
     { specGlobsRO = globals
     , specAllocs =
@@ -352,17 +327,16 @@ spec_ENC_MSG_x4 msgSize
         , vPT   := area "PT"    RO msgSize   Bytes
         , vCT   := area "CT"    WO msgSize   Bytes
         , vTag  := area "TAG"   RO 16        Bytes
-        , vKeys := area "Keys"  RO (11 * 16) Bytes
+        , vKeys := area "Keys"  RO 11        V128s
         ]
     , specPres =
         [ checkPre "Invalid message size" (Loc vMsgLen === intLit msgSize) ]
     , specPosts = standardPost ++
-        [ checkPreserves vCT
-        , checkCryPostDef (Loc res) "ENC_MSG_def"
-            [ cryArrPre vKeys  (11 * 16) Bytes
-            , cryArrPre vTag   16        Bytes
-            , cryArrPre vPT    msgSize   Bytes
-            ]
+        [ checkCryPointsTo (PreLoc vCT) msgSize Bytes
+          "ENC_MSG_def" [ CryArrPre (PreLoc vKeys)  11        V128s
+                        , CryArrPre (PreLoc vTag)   16        Bytes
+                        , CryArrPre (PreLoc vPT)    msgSize   Bytes
+                        ]
         ]
     , specCalls = []
     }
@@ -374,8 +348,6 @@ spec_ENC_MSG_x4 msgSize
   vKeys   = InReg M.RCX
   vMsgLen = InReg M.R8
 
-  -- XXX: The 24 here needs to match `msgSize`
-  res = inMem vCT 0 Bytes :: Loc (LLVMPointerType (24 * 8))
 
 
 
@@ -403,12 +375,6 @@ prove_ENC_MSG_x8 =
                       R8  -> gpUse valMsgLen
                       _   -> GPFresh AsBits
 
-     -- Save 12 register;
-     -- 128 bytes (16 qwords) of local space;
-     -- 63 bytes for alignment (~ 8 words)
-     -- 16 bytes (2 qwords)
-     -- XXX:  SOMEHOW, we can verify this with only 7 instead of 8 words
-     -- for the alignment.  This does not seem right. INVESTIGATE.
      (_, r, basicPost) <- setupContext 0 (12 + 16 + 8 + 2)
                                                   gpRegs (const Nothing)
 
@@ -427,12 +393,23 @@ prove_ENC_MSG_x8 =
 
 
 
-spec_AES_GCM_SIV_Encrypt gfmul aadSize msgSize =
+spec_AES_GCM_SIV_Encrypt ::
+  Integer -> Integer -> Integer -> Integer -> Integer ->
+  Integer -> Integer ->
+  Specification
+spec_AES_GCM_SIV_Encrypt
+  fun_GFMUL
+  fun_Polyval_Horner_AAD_MSG_LENBLK
+  fun_AES_128_ENC_x4
+  fun_AES_KS_ENC_x1
+  fun_ENC_MSG_x4
+  aadSize msgSize =
+
   Specification
   { specGlobsRO = globals
   , specAllocs =
       [ stack
-      , vCtx  := area "Ctx" RO (16 * 15) Bytes
+      , vCtx  := area "Ctx" RO 11        V128s -- (16 * 15) Bytes
       , vPT   := area "PT"  RO msgSize   Bytes
       , vCT   := area "CT"  WO msgSize   Bytes
       , vTag  := area "TAG" WO 16        Bytes
@@ -443,14 +420,43 @@ spec_AES_GCM_SIV_Encrypt gfmul aadSize msgSize =
                , checkPre "Invalid MSG size" (Loc vMsgSz === intLit msgSize)
                ]
   , specPosts = standardPost ++
-                [
+
+                [ checkCryPointsTo (PreLoc vTag) 1 V128s
+                  "AES_GMC_SIV_Encrypt_TAG_def"
+                      [ CryArrPre (PreLoc vCtx)   11        V128s
+                      , CryArrPre (PreLoc vIV)    12        Bytes
+                      , CryArrPre (PreLoc vAAD)   aadSize   Bytes
+                      , CryArrPre (PreLoc vPT)    msgSize   Bytes
+                      ]
+
+                , checkCryPointsTo (PreLoc vCT) msgSize Bytes
+                  "AES_GMC_SIV_Encrypt_CT_def"
+                      [ CryArrPre (PreLoc vCtx)   11        V128s
+                      , CryArrPre (PreLoc vIV)    12        Bytes
+                      , CryArrPre (PreLoc vAAD)   aadSize   Bytes
+                      , CryArrPre (PreLoc vPT)    msgSize   Bytes
+                      ]
                 ]
   , specCalls =
-      [ ("AES_128_ENC_x4", 0x402fa6, spec_AES_128_ENC_x4)
-      , ("Polyval_Horner_AAD_MSG_LENBLK", 0x400b9b,
-            spec_Polyval_Horner_AAD_MSG_LENBLK gfmul aadSize msgSize)
-      , ("AES_KS_ENC_x1", 0x402a2d, spec_AES_KS_ENC_x1)
-      , ("ENC_MSG_x4",    0x402010, spec_ENC_MSG_x4 msgSize)
+      [ ( "AES_128_ENC_x4"
+        , fun_AES_128_ENC_x4
+        , spec_AES_128_ENC_x4
+        )
+
+      , ( "Polyval_Horner_AAD_MSG_LENBLK"
+        , fun_Polyval_Horner_AAD_MSG_LENBLK
+        , spec_Polyval_Horner_AAD_MSG_LENBLK fun_GFMUL aadSize msgSize
+        )
+
+      , ( "AES_KS_ENC_x1"
+        , fun_AES_KS_ENC_x1
+        , spec_AES_KS_ENC_x1
+        )
+
+      , ( "ENC_MSG_x4"
+        , fun_ENC_MSG_x4
+        , spec_ENC_MSG_x4 msgSize
+        )
       ]
   }
 

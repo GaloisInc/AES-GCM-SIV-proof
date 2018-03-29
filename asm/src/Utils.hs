@@ -64,12 +64,13 @@ newProofIO fun strategy pre =
      let elf = "./verif-src/proof_target"
          cry = Just "cryptol/Asm128.cry"
 
+         display _ = return () {-
          display  s = do debugPPReg M.RSP s
                          debugPPReg M.RDI s
                          debugPPReg M.RSI s
                          debugPPReg M.RDX s
                          debugPPReg M.RCX s
-                         debugPPReg M.R8  s
+                         debugPPReg M.R8  s -}
 
      (ctx, addr, gs) <- proof linuxInfo elf cry (\_ _ -> return Map.empty)
                     Fun { funName = fun
@@ -169,12 +170,26 @@ checkPre = checkPost
 checkPost :: a -> b -> (a,b)
 checkPost x y = (x, y)
 
+-- | Check that the value in a specific location contains a given value,
+-- as defined by the Cryptol function.
 checkCryPostDef ::
   (1 <= w, KnownNat w) =>
   V Post (LLVMPointerType w) -> String -> [CryArg Post] -> (String, Prop Post)
 checkCryPostDef l f xs =
   checkPost (show l ++ " is not defined by " ++ show f)
             (l === CryFun knownNat f xs)
+
+-- | Check that a specific pointer points to a memory location as
+-- described by the given Cryptol funcion.
+checkCryPointsTo ::
+  V Post (LLVMPointerType 64) {- ^ This pointer pointrs to -} ->
+  Integer                     {- ^ This many -} ->
+  Unit                        {- ^ Values of this size -} ->
+  String                      {- ^ As specified by this Cryptol function -} ->
+  [CryArg Post]               {- ^ when applied to these arguments -} ->
+  (String, Prop Post)
+checkCryPointsTo l n u f xs =
+  checkPost (show l ++ " is not defined by " ++ show f) (CryPostMem l n u f xs)
 
 
 
@@ -186,7 +201,7 @@ stackAlloc :: Integer -> Alloc
 stackAlloc locWords =
   InReg M.RSP := Area { areaName = "stack"
                       , areaMode = RW
-                      , areaSize = (1 + locWords) *. QWords
+                      , areaSize = (1 + locWords, QWords)
                       , areaHasPointers = True
                       , areaPtr  = locWords *. QWords
                       }
@@ -201,7 +216,7 @@ stackAllocArgs argWords locWords =
   ( arg
   , InReg M.RSP := Area { areaName = "stack"
                         , areaMode = RW
-                        , areaSize = (locWords + 1 + argWords) *. QWords
+                        , areaSize = (locWords + 1 + argWords,  QWords)
                         , areaHasPointers = True
                         , areaPtr  = locWords *. QWords
                         }

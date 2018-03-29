@@ -181,7 +181,7 @@ solveGoal prover ctx g =
      putStrLn ("  Avoiding: " ++ ppReason (gMessage g))
      putStr "  Working... "
      hFlush stdout
-     writeFile "GG.hs" (scPrettyTerm defaultPPOpts term)
+     -- writeFile "GG.hs" (scPrettyTerm defaultPPOpts term)
      (mb, stats) <- prover ctx Prove term
      putStrLn (ppStats stats)
      case mb of

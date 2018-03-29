@@ -26,6 +26,8 @@ import qualified Data.Macaw.X86.X86Reg as M
 
 import System.Exit(exitFailure)
 
+import Globals(globals)
+
 newProof ::
   ByteString {- ^ Name of the function -} ->
   Prover ->
@@ -68,7 +70,7 @@ newProofIO fun strategy pre =
                          -- debugPPReg M.R8  s
           --}
 
-     (ctx, addr, gs) <- proof linuxInfo elf cry (\_ _ -> return Map.empty)
+     (ctx, addr, gs) <- proof linuxInfo elf cry globals (\_ _ -> return Map.empty)
                     Fun { funName = fun
                         , funSpec = NewStyle pre display }
      mapM_ (solveGoal strategy ctx) gs

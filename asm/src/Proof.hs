@@ -12,7 +12,6 @@ import SAWScript.X86SpecNew hiding (cryConst, cryTerm)
 import Data.Macaw.X86.X86Reg
 
 import Utils
-import Globals
 
 
 main :: IO ()
@@ -71,7 +70,7 @@ main =
 spec_INIT_Htable :: Integer -> Specification
 spec_INIT_Htable gfmul =
   Specification
-    { specGlobsRO = globals
+    { specGlobsRO = []
     , specAllocs  =
         [ stackAlloc 1
         , vH   := area "H"   RO 1  V128s
@@ -94,7 +93,7 @@ spec_INIT_Htable gfmul =
 spec_Polyval_Htable :: Integer -> Specification
 spec_Polyval_Htable size =
   Specification
-    { specGlobsRO = globals
+    { specGlobsRO = []
     , specAllocs =
         [ stackAlloc (12 + 2)
         , vHtable := area "Htbl" RO 8     V128s
@@ -143,7 +142,7 @@ spec_GFMUL =
         , checkPreserves (InReg R11)
         , checkCryPostDef (Loc res) "dot256" [ cryPre res, cryPre h ]
         ]
-    , specGlobsRO = globals
+    , specGlobsRO = []
     , specCalls = []
     }
   where
@@ -179,7 +178,7 @@ spec_Polyval_Horner gfmul size =
                 ]
        ]
 
-    , specGlobsRO = globals
+    , specGlobsRO = []
     , specCalls = [ ("GFMUL", gfmul, spec_GFMUL) ]
     }
   where
@@ -219,7 +218,7 @@ spec_Polyval_Horner_AAD_MSG_LENBLK gfmul aadSize msgSize =
                     ]
                 ]
 
-    , specGlobsRO = globals
+    , specGlobsRO = []
     , specCalls = [ ("GFMUL", gfmul, spec_GFMUL) ]
     }
 
@@ -257,7 +256,7 @@ spec_AES_128_ENC_x4 =
                         , CryArrPre (PreLoc vKeys) 11  V128s
                         ]
                     ]
-    , specGlobsRO = globals
+    , specGlobsRO = []
     , specCalls = []
     }
 
@@ -277,7 +276,7 @@ spec_AES_KS_ENC_x1 =
                    , vKeys  := area "Keys" WO 11 V128s
                    , vIKey  := area "IKey" RO 16 Bytes
                    ]
-    , specGlobsRO = globals
+    , specGlobsRO = []
     , specPres = []
     , specPosts = standardPost ++
         [ checkCryPointsTo (PreLoc vKeys) 11 V128s
@@ -306,7 +305,7 @@ spec_ENC_MSG_x4 ::
   Specification
 spec_ENC_MSG_x4 msgSize =
   Specification
-    { specGlobsRO = globals
+    { specGlobsRO = []
     , specAllocs =
         [ stackAlloc (10 + 2)
         , vPT   := area "PT"    RO msgSize   Bytes
@@ -337,7 +336,7 @@ spec_ENC_MSG_x4 msgSize =
 spec_ENC_MSG_x8 :: Integer -> Specification
 spec_ENC_MSG_x8 msgSize =
   Specification
-    { specGlobsRO = globals
+    { specGlobsRO = []
     , specAllocs  =
         [ stackAlloc (12 + 16 + 8 + 2)
         , vPT   := area "PT"   RO msgSize Bytes
@@ -382,7 +381,7 @@ spec_AES_GCM_SIV_Encrypt
   aadSize msgSize =
 
   Specification
-  { specGlobsRO = globals
+  { specGlobsRO = []
   , specAllocs =
       [ stack
       , vCtx  := area "Ctx" RO 11        V128s -- (16 * 15) Bytes

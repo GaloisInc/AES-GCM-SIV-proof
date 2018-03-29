@@ -10,9 +10,18 @@ type MSG_Size = 64 /* Bytes */
 dot256 : [256] -> [256] -> [256]
 dot256 (_ # res) (_ # h) = 0 # dot res h
 
-Polyval_Horner_def : [16][8] -> [AAD_Size][8] -> [16][8] -> [1][128]
-Polyval_Horner_def h i t =
-  [ polyvalFrom (leLoad h) (leLoadBlocks i) (leLoad t) ]
+Polyval_Horner_gen_def :
+  {n} fin n => [1][128] -> [n][8] -> [1][128] -> [1][128]
+Polyval_Horner_gen_def [h] i [t] = [ polyvalFrom h (leLoadBlocks i) t ]
+
+Polyval_Horner_AAD_def : [1][128] -> [AAD_Size][8] -> [1][128] -> [1][128]
+Polyval_Horner_AAD_def = Polyval_Horner_gen_def
+
+Polyval_Horner_MSG_def : [1][128] -> [MSG_Size][8] -> [1][128] -> [1][128]
+Polyval_Horner_MSG_def = Polyval_Horner_gen_def
+
+Polyval_Horner_LENBLK_def : [1][128] -> [16][8] -> [1][128] -> [1][128]
+Polyval_Horner_LENBLK_def = Polyval_Horner_gen_def
 
 Polyval_Horner_AAD_MSG_def :
   [16][8] -> [AAD_Size][8] -> [MSG_Size][8] -> [2][64] -> [16][8] -> [1][128]
@@ -28,21 +37,14 @@ INIT_Htable_def [h] = INIT_Htable h
 
 Polyval_HTable_gen_def :
   {n} (fin n) => [8][128] -> [n][8] -> [1][128] -> [1][128]
-Polyval_HTable_gen_def tbl data [T] =
-  [ polyvalHtableNH tbl (leLoadBlocks data) T ]
+Polyval_HTable_gen_def tbl data [t] =
+  [ polyvalHtableNH tbl (leLoadBlocks data) t ]
 
-Polyval_HTable_16_def : [8][128] -> [16][8] -> [1][128] -> [1][128]
-Polyval_HTable_16_def = Polyval_HTable_gen_def `{16}
+Polyval_HTable_AAD_def : [8][128] -> [AAD_Size][8] -> [1][128] -> [1][128]
+Polyval_HTable_AAD_def = Polyval_HTable_gen_def `{AAD_Size}
 
 Polyval_HTable_4_def : [8][128] -> [4][8] -> [1][128] -> [1][128]
-Polyval_HTable_4_def = Polyval_HTable_gen_def `{4}
-
-
-Polyval_HTable_post :
-  [AAD_Size][8] -> [128][8] -> [16][8] -> [16][8] -> Bool
-Polyval_HTable_post X tbl T result =
-  polyvalHtableNH (leLoadArray tbl) (leLoadBlocks X) (leLoad T) == (leLoad result)
-
+Polyval_HTable_4_def = Polyval_HTable_gen_def
 
 
 // See `derive_key` in the spec.

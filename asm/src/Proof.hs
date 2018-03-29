@@ -1,6 +1,9 @@
 {-# Language OverloadedStrings #-}
 module Main where
 
+import System.Exit(exitFailure)
+import Control.Exception(SomeException(SomeException),catch)
+
 import SAWScript.Prover.SBV(satUnintSBV,yices)
 import SAWScript.Prover.RME(satRME)
 import SAWScript.Prover.ABC(satABC)
@@ -45,11 +48,10 @@ main =
             (satUnintSBV yices ["dot"])
             (spec_INIT_Htable 0x4013f4)
 
-{- XXX: We get a counter example here: check with Joey's spec
-    _ <- newProof "Polyval_Htable"
-         satABC
-         (spec_Polyval_Htable 4)
--}
+      -- XXX: Prove for different sizes.
+     _ <- newProof "Polyval_Htable"
+          satRME
+          (spec_Polyval_Htable 4)
 
      _ <- newProofSizes "AES_GCM_SIV_Encrypt"
             (satUnintSBV yices [ "aes", "ExpandKey"
@@ -63,7 +65,8 @@ main =
                                       aadSize msgSize
 
      return ()
-
+  `catch` \(SomeException e) -> do print e
+                                   exitFailure
 
 spec_INIT_Htable :: Integer -> Specification
 spec_INIT_Htable gfmul =
@@ -85,6 +88,7 @@ spec_INIT_Htable gfmul =
   where
   vTab = InReg RDI
   vH   = InReg RSI
+
 
 
 spec_Polyval_Htable :: Integer -> Specification
@@ -113,6 +117,9 @@ spec_Polyval_Htable size =
   vBuf    = InReg RSI
   vSize   = InReg RDX
   vT      = InReg RCX
+
+
+
 
 
 
@@ -155,8 +162,8 @@ spec_Polyval_Horner gfmul size =
       [ -- Save 10 registers; 16 bytes local (2 qwords); RET for call
         stackAlloc (10 + 2 + 1)
 
-      , vT   := area "T"   RW 16    Bytes
-      , vH   := area "H"   RO 16    Bytes
+      , vT   := area "T"   RW 1     V128s
+      , vH   := area "H"   RO 1     V128s
       , vBuf := area "buf" RO size  Bytes
       ]
 
@@ -165,10 +172,10 @@ spec_Polyval_Horner gfmul size =
 
     , specPosts = standardPost ++
         [ checkCryPointsTo (PreLoc vT) 1 V128s
-             "Polyval_Horner_def"
-                [ CryArrPre (PreLoc vH)   16   Bytes
+             "Polyval_Horner_AAD_def"
+                [ CryArrPre (PreLoc vH)   1    V128s
                 , CryArrPre (PreLoc vBuf) size Bytes
-                , CryArrPre (PreLoc vT)   16   Bytes
+                , CryArrPre (PreLoc vT)   1    V128s
                 ]
        ]
 

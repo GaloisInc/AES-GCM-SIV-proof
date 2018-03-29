@@ -89,25 +89,28 @@ polyvalFrom H Xs start = psums ! 0
 
 //1 is not the identity for dot forcing it in next function instead
 polyvalFromNH : {n, hs} (fin n, fin hs, hs >=n) => [hs][128] -> [n][128] -> [128] -> [128]
-polyvalFromNH Hs Xs start = (sums ! 0) ^ dot (([1] # Hs) @ (`n : [width n])) start
+polyvalFromNH Hs Xs start = (sums ! 0) ^ (dot (([1] # Hs) @ (`n : [width n])) start)
   where sums = [zero] # [ (dot X H) ^ sum
-                    | sum <- sums
-                    | X <- reverse Xs
-                    | H <- Hs ]
+                        | sum <- sums
+                        | X <- reverse Xs
+                        | H <- Hs ]
 
 
 polyvalHtableNH :
   {n, hs} (fin n, fin hs, hs >=1) => [hs][128] -> [n][128] -> [128] -> [128]
 polyvalHtableNH Hs Xs start  = result
-  where sums = [start] # [ polyvalFromNH Hs Xchunk sum
-                    | sum    <- sums
-                    | Xchunk <- split (take Xs) : [n/hs][hs][128] ]
+  where sums = [start]
+             # [ polyvalFromNH Hs Xchunk sum
+               | sum    <- sums
+               | Xchunk <- split (take Xs): [n/hs][hs][128]
+               ]
         remainder = drop Xs : [n % hs][128]
         result =
-          if width remainder == (0 : [width (n%hs)]) then
-            sums ! 0x0
+          if width remainder == (0 : [width (n % hs)]) then
+            sums ! 0
           else
             polyvalFromNH Hs remainder (sums!0)
+
 
 pht : {a,size} (fin a,fin size,size>=2) => [128] -> [a][128] -> [128] -> Bit
 pht H Xs start =

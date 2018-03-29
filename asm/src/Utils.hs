@@ -1,5 +1,4 @@
-{-# Language RecordWildCards, DataKinds, FlexibleContexts, GADTs #-}
-{-# Language TypeOperators #-}
+{-# Language DataKinds, FlexibleContexts, GADTs, TypeOperators #-}
 module Utils (module Utils, module SAWScript.X86Spec) where
 
 import GHC.TypeLits(type (<=), KnownNat)

@@ -190,6 +190,7 @@ solveGoal prover ctx g =
                      putStrLn ", counter-example:"
                      let pp (x,y) = putStrLn ("    " ++ x ++ " = " ++ show y)
                      mapM_ pp a
+                     exitFailure
 
 say :: Color -> String -> IO ()
 say c x =

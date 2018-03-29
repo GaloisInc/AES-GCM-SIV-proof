@@ -16,12 +16,13 @@ import Utils
 
 main :: IO ()
 main =
-  do fun_GFMUL <- newProof "_GFMUL" satRME spec_GFMUL
+  do fun_GFMUL  <- newProof "_GFMUL" satRME spec_GFMUL
+     fun_GFMUL' <- newProof "GFMUL"  satRME spec_GFMUL
 
      -- used in Decrypt
      _ <- newProofSizes "Polyval_Horner"
             (satUnintSBV yices ["dot"])
-            $ \aadSize _msgSize -> spec_Polyval_Horner fun_GFMUL aadSize
+            $ \aadSize _msgSize -> spec_Polyval_Horner "AAD" fun_GFMUL aadSize
 
      fun_Polyval_Horner_AAD_MSG_LENBLK <-
         newProofSizes "Polyval_Horner_AAD_MSG_LENBLK"
@@ -45,22 +46,31 @@ main =
 
      fun_INIT_Htable <- newProof "INIT_Htable"
             (satUnintSBV yices ["dot"])
-            (spec_INIT_Htable 0x4013f4)
+            (spec_INIT_Htable fun_GFMUL')
 
-      -- XXX: Prove for different sizes.
-     _ <- newProof "Polyval_Htable"
+     fun_Polyval_Htable <- newProofSizes "Polyval_Htable"
           satRME
-          (spec_Polyval_Htable 4)
+          $ \aadSize _msgSize -> spec_Polyval_Htable "AAD" aadSize
+
+     _fun_Polyval_Htable <- newProofSizes "Polyval_Htable"
+          satRME
+          $ \_aadSize msgSize -> spec_Polyval_Htable "MSG" msgSize
+
+     _fun_Polyval_Htable <- newProof "Polyval_Htable"
+          satRME (spec_Polyval_Htable "BLK" 16)
 
      _ <- newProofSizes "AES_GCM_SIV_Encrypt"
             (satUnintSBV yices [ "aes", "ExpandKey"
-                            , "polyvalFrom", "counter_mode" ])
+                               , "dot", "counter_mode" ])
             $ \aadSize msgSize -> spec_AES_GCM_SIV_Encrypt
                                       fun_GFMUL
                                       fun_Polyval_Horner_AAD_MSG_LENBLK
                                       fun_AES_128_ENC_x4
                                       fun_AES_KS_ENC_x1
                                       fun_ENC_MSG_x4
+                                      fun_ENC_MSG_x8
+                                      fun_INIT_Htable
+                                      fun_Polyval_Htable
                                       aadSize msgSize
 
      return ()
@@ -82,7 +92,7 @@ spec_INIT_Htable gfmul =
              "INIT_Htable_def" [ CryArrPre (PreLoc vH) 1 V128s ]
           ]
     , specCalls =
-         [ ("GFMUL", gfmul, spec_GFMUL) ]
+         [ ("GFMUL", gfmul, const spec_GFMUL) ]
     }
   where
   vTab = InReg RDI
@@ -90,8 +100,8 @@ spec_INIT_Htable gfmul =
 
 
 
-spec_Polyval_Htable :: Integer -> Specification
-spec_Polyval_Htable size =
+spec_Polyval_Htable :: String -> Integer -> Specification
+spec_Polyval_Htable pref size =
   Specification
     { specGlobsRO = []
     , specAllocs =
@@ -103,7 +113,7 @@ spec_Polyval_Htable size =
     , specPres = [ checkPre "Invalid size" (Loc vSize === intLit size) ]
     , specPosts = standardPost ++
         [ checkCryPointsTo (PreLoc vT) 1 V128s
-            ("Polyval_HTable_" ++ show size ++ "_def")
+            ("Polyval_HTable_" ++ pref ++ "_def")
               [ CryArrPre (PreLoc vHtable) 8    V128s
               , CryArrPre (PreLoc vBuf)    size Bytes
               , CryArrPre (PreLoc vT)      1    V128s
@@ -116,11 +126,6 @@ spec_Polyval_Htable size =
   vBuf    = InReg RSI
   vSize   = InReg RDX
   vT      = InReg RCX
-
-
-
-
-
 
 
 spec_GFMUL :: Specification
@@ -152,10 +157,11 @@ spec_GFMUL =
 
 
 spec_Polyval_Horner ::
+  String  {- ^ Prefix to use in spec (should match the size) -} ->
   Integer {- ^ Address of GFMUL -} ->
   Integer {- ^ Input size -} ->
   Specification
-spec_Polyval_Horner gfmul size =
+spec_Polyval_Horner pref gfmul size =
   Specification
     { specAllocs =
       [ -- Save 10 registers; 16 bytes local (2 qwords); RET for call
@@ -171,7 +177,7 @@ spec_Polyval_Horner gfmul size =
 
     , specPosts = standardPost ++
         [ checkCryPointsTo (PreLoc vT) 1 V128s
-             "Polyval_Horner_AAD_def"
+             ("Polyval_Horner_" ++ pref ++ "_def")
                 [ CryArrPre (PreLoc vH)   1    V128s
                 , CryArrPre (PreLoc vBuf) size Bytes
                 , CryArrPre (PreLoc vT)   1    V128s
@@ -179,14 +185,13 @@ spec_Polyval_Horner gfmul size =
        ]
 
     , specGlobsRO = []
-    , specCalls = [ ("GFMUL", gfmul, spec_GFMUL) ]
+    , specCalls = [ ("GFMUL", gfmul, const spec_GFMUL) ]
     }
   where
   vT    = InReg RDI
   vH    = InReg RSI
   vBuf  = InReg RDX
   vSize = InReg RCX
-
 
 
 spec_Polyval_Horner_AAD_MSG_LENBLK ::
@@ -219,7 +224,7 @@ spec_Polyval_Horner_AAD_MSG_LENBLK gfmul aadSize msgSize =
                 ]
 
     , specGlobsRO = []
-    , specCalls = [ ("GFMUL", gfmul, spec_GFMUL) ]
+    , specCalls = [ ("GFMUL", gfmul, const spec_GFMUL) ]
     }
 
   where
@@ -369,7 +374,8 @@ spec_ENC_MSG_x8 msgSize =
 
 
 spec_AES_GCM_SIV_Encrypt ::
-  Integer -> Integer -> Integer -> Integer -> Integer ->
+  Integer -> Integer -> Integer -> Integer ->
+  Integer -> Integer -> Integer -> Integer ->
   Integer -> Integer ->
   Specification
 spec_AES_GCM_SIV_Encrypt
@@ -378,13 +384,16 @@ spec_AES_GCM_SIV_Encrypt
   fun_AES_128_ENC_x4
   fun_AES_KS_ENC_x1
   fun_ENC_MSG_x4
+  fun_ENC_MSG_x8
+  fun_INIT_Htable
+  fun_Polyval_Htable
   aadSize msgSize =
 
   Specification
   { specGlobsRO = []
   , specAllocs =
       [ stack
-      , vCtx  := area "Ctx" RO 11        V128s -- (16 * 15) Bytes
+      , vCtx  := area "Ctx" RO 40        V128s
       , vPT   := area "PT"  RO msgSize   Bytes
       , vCT   := area "CT"  WO msgSize   Bytes
       , vTag  := area "TAG" WO 16        Bytes
@@ -395,6 +404,17 @@ spec_AES_GCM_SIV_Encrypt
                , checkPre "Invalid MSG size" (Loc vMsgSz === intLit msgSize)
                ]
   , specPosts = standardPost ++
+{-
+                [ checkCryPointsTo (PreLoc vTag) 1 V128s
+                  "TEST"
+                  [ CryArrPre (PreLoc vCtx)   11        V128s
+                  , CryArrPre (PreLoc vIV)    12        Bytes
+                  , CryArrPre (PreLoc vAAD)   aadSize   Bytes
+                  , CryArrPre (PreLoc vPT)    msgSize   Bytes
+                  ]
+
+
+                ] -}
 
                 [ checkCryPointsTo (PreLoc vTag) 1 V128s
                   "AES_GMC_SIV_Encrypt_TAG_def"
@@ -412,25 +432,45 @@ spec_AES_GCM_SIV_Encrypt
                       , CryArrPre (PreLoc vPT)    msgSize   Bytes
                       ]
                 ]
+
   , specCalls =
       [ ( "AES_128_ENC_x4"
         , fun_AES_128_ENC_x4
-        , spec_AES_128_ENC_x4
+        , const spec_AES_128_ENC_x4
         )
 
       , ( "Polyval_Horner_AAD_MSG_LENBLK"
         , fun_Polyval_Horner_AAD_MSG_LENBLK
-        , spec_Polyval_Horner_AAD_MSG_LENBLK fun_GFMUL aadSize msgSize
+        , const $ spec_Polyval_Horner_AAD_MSG_LENBLK fun_GFMUL aadSize msgSize
         )
 
       , ( "AES_KS_ENC_x1"
         , fun_AES_KS_ENC_x1
-        , spec_AES_KS_ENC_x1
+        , const spec_AES_KS_ENC_x1
         )
 
       , ( "ENC_MSG_x4"
         , fun_ENC_MSG_x4
-        , spec_ENC_MSG_x4 msgSize
+        , const $ spec_ENC_MSG_x4 msgSize
+        )
+
+      , ( "ENC_MSG_x8"
+        , fun_ENC_MSG_x8
+        , const $ spec_ENC_MSG_x8 msgSize
+        )
+
+      , ( "INIT_Htable"
+        , fun_INIT_Htable
+        , const $ spec_INIT_Htable fun_GFMUL
+        )
+
+      , ( "Polyval_Htable"
+        , fun_Polyval_Htable
+        , \e -> case e of
+                  0 -> spec_Polyval_Htable "call_AAD" aadSize
+                  1 -> spec_Polyval_Htable "call_MSG" msgSize
+                  2 -> spec_Polyval_Htable "call_BLK" 16
+                  _ -> error "Unexpecte call to Polyval_Htable"
         )
       ]
   }
@@ -445,6 +485,7 @@ spec_AES_GCM_SIV_Encrypt
   vMsgSz  = arg 0
   vIV     = arg 1
 
-  (arg,stack) = stackAllocArgs 2 62
+  -- (arg,stack) = stackAllocArgs 2 62
+  (arg,stack) = stackAllocArgs 2 200
 
 

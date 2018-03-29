@@ -4,7 +4,8 @@ import SAWScript.X86SpecNew(Unit(..))
 
 globals :: [(String,Integer,Unit,[Integer])]
 globals =
-   [ declare "poly"       0x400a80 QWords [ 0x1, 0xc200000000000000 ] 
+   [ declare "poly"       0x400a80 QWords [ 0x1, 0xc200000000000000 ]
+   , declare "poly"       0x400d80 QWords [ 0x1, 0xc200000000000000 ]
 
    , declare "OR_MASK"    0x401fc0 DWords
                             [ 0x00000000,0x00000000,0x00000000,0x80000000 ]
@@ -40,8 +41,6 @@ globals =
   , declare "and_mask_c"  0x0403500 QWords [ 0xffffffffffffffff
                                            , 0x7fffffffffffffff ]
 
-  , declare "shuff_mask" 0x400d80 QWords [ 0x0f0f0f0f0f0f0f0f
-                                         , 0x0f0f0f0f0f0f0f0f ]
   ]
 
   where

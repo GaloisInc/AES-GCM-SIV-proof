@@ -4,19 +4,20 @@ import X86
 import AES128
 import AES128_GCM_SIV
 
-type AAD_Size = 4
-type MSG_Size = 24
+type AAD_Size = 4     /* Bytes */
+type MSG_Size = 24    /* Bytes */
 
 dot256 : [256] -> [256] -> [256]
 dot256 (_ # res) (_ # h) = 0 # dot res h
 
-Polyval_Horner_def : [16][8] -> [AAD_Size][8] -> [16][8] -> [128]
-Polyval_Horner_def h i t = polyvalFrom (leLoad h) (leLoadBlocks i) (leLoad t)
+Polyval_Horner_def : [16][8] -> [AAD_Size][8] -> [16][8] -> [1][128]
+Polyval_Horner_def h i t =
+  [ polyvalFrom (leLoad h) (leLoadBlocks i) (leLoad t) ]
 
 Polyval_Horner_AAD_MSG_def :
-  [16][8] -> [AAD_Size][8] -> [MSG_Size][8] -> [2][64] -> [16][8] -> [128]
+  [16][8] -> [AAD_Size][8] -> [MSG_Size][8] -> [2][64] -> [16][8] -> [1][128]
 Polyval_Horner_AAD_MSG_def h aad pt lblk t =
-  polyvalFrom (leLoad h) work (leLoad t)
+  [ polyvalFrom (leLoad h) work (leLoad t) ]
   where
   work = leLoadBlocks aad
        # leLoadBlocks pt
@@ -36,53 +37,53 @@ Polyval_HTable_post X tbl T result =
 
 
 // See `derive_key` in the spec.
-AES_128_ENC_x4_def : [16][8] -> [11 * 16][8] -> [4 * 128]
-AES_128_ENC_x4_def iv' keys =
-  leLoad (leStoreArray [ aesWithKeys keys (iv # i) | i <- [ 0 .. 3 ] ])
+AES_128_ENC_x4_def : [16][8] -> [11][128] -> [4][128]
+AES_128_ENC_x4_def iv' keys = [ aesWithKeys keys (iv # i) | i <- [ 0 .. 3 ] ]
   where
   _ # (iv : [96]) = leLoad iv'
 
 
 /* Encrypt the pt with the given key, expanding it as you go.
 The result it the encrypted text and the expanded key */
-AES_KS_ENC_x1_def1 : [16][8]  -> [11 * 16 * 8]
+AES_KS_ENC_x1_def1 : [16][8]  -> [11][128]
 AES_KS_ENC_x1_def1 ikey =
-  leLoad (aesKeyToBytes (ExpandKey (leLoad (reverse ikey))))
-  // NOTE: It would appear the key expansion in our spec and the
-  // one in the code are reversed.
+  aesKeyToBits (ExpandKey (beLoad ikey))
+  // NOTE the BIG ENDIAN load on the key
 
-AES_KS_ENC_x1_def2 : [11 * 16][8] -> [16][8] -> [16 * 8]
-AES_KS_ENC_x1_def2 keys pt = aesWithKeys keys (leLoad pt)
-
+AES_KS_ENC_x1_def2 : [11][128] -> [16][8] -> [1][128]
+AES_KS_ENC_x1_def2 keys pt = [ aesWithKeys keys (leLoad pt) ]
 
 ENC_MSG_def :
-  [11 * 16][8] -> [16][8] -> [MSG_Size][8] -> [MSG_Size * 8]
+  [11][128] -> [16][8] -> [MSG_Size][8] -> [MSG_Size][8]
 ENC_MSG_def keys tag pt =
-  leLoad (leStoreBlocks (counter_mode K2 (0b1 # tUpper, tLower) M))
+  leStoreBlocks (counter_mode K2 (0b1 # tUpper, tLower) M)
   where
-  K2 = aesKeysFromBytes keys
+  K2 = aesKeysFromBits keys
   M  = leLoadBlocks pt
   _ # tUpper # tLower = leLoad tag
 
 
-
-ENC_MSG_post :
-  [11 * 16][8] -> [16][8] -> [MSG_Size][8] -> [MSG_Size][8] -> Bool
-ENC_MSG_post keys tag pt ct =
-  leStoreBlocks (counter_mode K2 (0b1 # tUpper, tLower) M) == ct
-  where
-  K2 = aesKeysFromBytes keys
-  M  = leLoadBlocks pt
-  _ # tUpper # tLower = leLoad tag
-
+// NOTE the BIG ENDIAN loads on the AAD and the Message
 AES_GMC_SIV_Encrypt_pair :
-  [11 * 16][8] -> [12][8] -> [AAD_Size][8] -> [MSG_Size][8] ->
+  [11][128] -> [12][8] -> [AAD_Size][8] -> [MSG_Size][8] ->
                                                     ([8 * MSG_Size], [128])
 AES_GMC_SIV_Encrypt_pair keys iv aad pt =
-  gcm_siv_plus ks nonce (leLoad aad) (leLoad pt)
+  gcm_siv_plus ks nonce (beLoad aad) (beLoad pt)
   where
-  ks    = derive_key_expanded (aesKeysFromBytes keys) nonce
+  ks    = derive_key_expanded (aesKeysFromBits keys) nonce
   nonce = leLoad iv
+
+AES_GMC_SIV_Encrypt_TAG_def :
+  [11][128] -> [12][8] -> [AAD_Size][8] -> [MSG_Size][8] -> [1][128]
+AES_GMC_SIV_Encrypt_TAG_def keys iv add pt = [ tag ]
+  where (_,tag) = AES_GMC_SIV_Encrypt_pair keys iv add pt
+
+AES_GMC_SIV_Encrypt_CT_def :
+  [11][128] -> [12][8] -> [AAD_Size][8] -> [MSG_Size][8] -> [MSG_Size][8]
+AES_GMC_SIV_Encrypt_CT_def keys iv add pt = beStore ct
+  where (ct,_) = AES_GMC_SIV_Encrypt_pair keys iv add pt
+
+
 
 
 // -----------------------------------------------------------------------------
@@ -98,16 +99,18 @@ vpshufb i x = join [ sel ix | ix <- split`{each=8} i ]
 
 // -----------------------------------------------------------------------------
 
-aesWithKeys : [11 * 16][8] -> [128] -> [128]
-aesWithKeys ks pt = aes (aesKeysFromBytes ks) pt
+aesWithKeys : [11][128] -> [128] -> [128]
+aesWithKeys ks pt = aes (aesKeysFromBits ks) pt
 
-aesKeysFromBytes : [11 * 16][8] -> KeySchedule
-aesKeysFromBytes ks = (k1,kRest,kLast)
-  where [k1] # kRest # [kLast] = [ aesStateFromBytes m | m <- split ks ]
+aesKeysFromBits : [11][128] -> KeySchedule
+aesKeysFromBits ks = (k1,kRest,kLast)
+  where [k1] # kRest # [kLast] = [ aesStateFromBits m | m <- ks ]
 
-aesKeyToBytes : KeySchedule -> [11 * 16][8]
-aesKeyToBytes (k1,kRest,kLast) =
-  aesStateToBytes k1 # join [ aesStateToBytes x | x <- kRest ] # aesStateToBytes kLast
+aesKeyToBits : KeySchedule -> [11][128]
+aesKeyToBits (k1,kRest,kLast) =
+  [ aesStateToBits k1 ] #
+  [ aesStateToBits x | x <- kRest ] #
+  [ aesStateToBits kLast ]
 
 leLoadBlocks : {n} (fin n) => [n][8] -> [n /^ 16][128]
 leLoadBlocks bytes = leLoadArray (bytes # zero)

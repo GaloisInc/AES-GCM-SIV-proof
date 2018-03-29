@@ -5,8 +5,8 @@ import AES128
 import AES128_GCM_SIV
 
 type AAD_Size = 4  /* Bytes */
-type MSG_Size = 64 /* Bytes */
-// type MSG_Size = 160 /* Bytes */
+// type MSG_Size = 64 /* Bytes */
+type MSG_Size = 128 /* Bytes */
 
 
 dot256 : [256] -> [256] -> [256]

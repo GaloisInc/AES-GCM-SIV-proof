@@ -47,6 +47,8 @@ newProofSizes fun strategy pre =
                        Right a  -> return a
        aad <- doGet "AAD_Size"
        msg <- doGet "MSG_Size"
+       putStrLn ("  AAD_Size = " ++ show aad)
+       putStrLn ("  MSG_Size = " ++ show msg)
        return (pre aad msg)
 
 

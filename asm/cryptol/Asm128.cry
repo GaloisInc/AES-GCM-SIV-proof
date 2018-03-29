@@ -1,13 +1,9 @@
-module Asm128 where
+module GenAsm128 where
 
 import X86
 import AES128
 import AES128_GCM_SIV
-
-type AAD_Size = 4  /* Bytes */
-// type MSG_Size = 64 /* Bytes */
-type MSG_Size = 128 /* Bytes */
-
+import Sizes
 
 dot256 : [256] -> [256] -> [256]
 dot256 (_ # res) (_ # h) = 0 # dot res h

@@ -11,8 +11,9 @@ https://tools.ietf.org/html/draft-irtf-cfrg-gcmsiv-06
 module AES128_GCM_SIV where
 
 import AES128 as AES
+import Sizes
 
-type AAD  = 32
+type AAD  = 8 * AAD_Size
 
 type K  = 128
 type KS = AES::KeySchedule

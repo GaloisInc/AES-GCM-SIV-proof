@@ -27,7 +27,7 @@ install:
   - . .travis/install_saw.sh
 
 script:
-  - cp -n AES-GCM-SIV/AES_GCM_SIV_128/AES_GCM_SIV_128_Performance_Code/* asm/verif-src
+  - cp -n AES-GCM-SIV/AES_GCM_SIV_128/AES_GCM_SIV_128_Performance_Code/* asm/verif-src || true
   - make -C asm/verif-src
   - cd asm
   - Proof

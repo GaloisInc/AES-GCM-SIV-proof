@@ -1,6 +1,6 @@
 .PHONY: clean
 
-CC=gcc
+CC=gcc-7
 CFLAGS=-Wall -Wextra -no-pie -O2 -maes -mavx -fno-stack-protector
 
 proof_target: \

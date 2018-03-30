@@ -9,6 +9,13 @@ cache:
     directories:
         - deps
 
+addons:
+  apt:
+    sources:
+      sourceline: 'ppa:jonathonf/gcc-7.1'
+    packages:
+      - gcc-7
+
 os:
   - linux
 

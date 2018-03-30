@@ -1,12 +1,20 @@
 sudo: required
 dist: trusty
 language: c
+
+git:
+  submodules: false
+
 cache:
     directories:
         - deps
 
 os:
   - linux
+
+
+before_install:
+  - git submodule update --init
 
 install:
   - . .travis/install_saw.sh

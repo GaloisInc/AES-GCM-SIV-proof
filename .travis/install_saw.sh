@@ -3,10 +3,10 @@
 # -x prints commands as they run -e causes any error to terminate the script with an error code
 set -xe
 
-mkdir -p deps/saw
+mkdir -p deps
 cd deps/
 #Check if the proof tool is already there, in case it was cached
-if [ ! -f bin/Proof ]; then
+if [ ! -f Proof ]; then
     #Download the proof
     curl https://saw.galois.com/builds/gcm_siv/Proof -O;
 fi
@@ -28,10 +28,11 @@ fi
     Z3_BIN=$(pwd)/z3/bin
     YICES_BIN=$(pwd)/yices/bin
 
-    export PATH=$SAW_BIN:$Z3_BIN:$YICES_BIN:$PATH
+    export PATH=$PROOF_BIN:$Z3_BIN:$YICES_BIN:$PATH
 
 
 cd ..
+pwd
 
 #Turn those back off, so they don't affect our Travis script
 set +ex

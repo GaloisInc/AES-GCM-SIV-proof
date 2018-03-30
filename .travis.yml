@@ -29,4 +29,5 @@ install:
 script:
   - cp -n AES-GCM-SIV/AES_GCM_SIV_128/AES_GCM_SIV_128_Performance_Code/* asm/verif-src
   - make -C asm/verif-src
+  - cd asm
   - Proof

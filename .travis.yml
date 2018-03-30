@@ -31,3 +31,6 @@ script:
   - make -C asm/verif-src
   - cd asm
   - Proof
+  - rm cryptol/Sizes.cry
+  - cp cryptol/Sizes2.cry cryptol/Sizes.cry
+  - Proof

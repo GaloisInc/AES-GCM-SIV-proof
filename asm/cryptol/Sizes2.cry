@@ -1,4 +1,4 @@
 module Sizes where
 
 type AAD_Size = 5   // Bytes
-type MSG_Size = 64 // Bytes
+type MSG_Size = 128 // Bytes

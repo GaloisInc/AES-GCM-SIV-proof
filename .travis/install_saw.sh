@@ -9,7 +9,7 @@ cd deps/
 if [ ! -f Proof ]; then
     #Download the proof
     curl https://saw.galois.com/builds/gcm_siv/Proof -O;
-    sudo chmod +x proof
+    sudo chmod +x Proof
 fi
 
 

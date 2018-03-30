@@ -8,7 +8,7 @@ cd deps/
 #Check if the proof tool is already there, in case it was cached
 if [ ! -f bin/Proof ]; then
     #Download the proof
-    curl https://saw.galois.com/builds/gcm_siv/Proof > bin/Proof;
+    curl https://saw.galois.com/builds/gcm_siv/Proof -O;
 fi
 
 
@@ -24,7 +24,7 @@ if [ ! -f z3/bin/z3 ] || [ ! -f yices/bin/yices-smt2 ]; then
     z3/bin/z3 --version
     yices/bin/yices-smt2 --version
 fi
-    PROOF_BIN=$(pwd)/bin
+    PROOF_BIN=$(pwd)
     Z3_BIN=$(pwd)/z3/bin
     YICES_BIN=$(pwd)/yices/bin
 

@@ -1,6 +1,7 @@
 [submodule "AES-GCM-SIV"]
 	path = AES-GCM-SIV
-	url = git@github.com:Shay-Gueron/AES-GCM-SIV.git
+	url = https://github.com/Shay-Gueron/AES-GCM-SIV.git
+	branch = master
 [submodule "asm/abcBridge"]
 	path = asm/deps/abcBridge
 	url = https://github.com/GaloisInc/abcBridge.git

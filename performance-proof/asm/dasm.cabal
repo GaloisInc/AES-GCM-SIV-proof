@@ -1,0 +1,26 @@
+name:                dasm
+version:             0.1.0.0
+license:             ISC
+license-file:        LICENSE
+author:              Iavor Diatchki
+maintainer:          iavor.diatchki@gmail.com
+category:            Language
+build-type:          Simple
+extra-source-files:  ChangeLog.md
+cabal-version:       >=1.10
+
+
+executable Proof
+  main-is:             Proof.hs
+  hs-source-dirs:      src
+  other-modules:       Utils, Globals
+  build-depends:       base >=4.10 && <4.11, bytestring, saw-script, saw-core,
+                       parameterized-utils, containers,
+                       macaw-x86, macaw-x86-symbolic, crucible, crucible-llvm,
+                       macaw-symbolic, flexdis86, crucible-saw,
+                       cryptol-verifier,
+                       ansi-terminal
+
+  ghc-options:         -Wall -threaded
+  default-language:    Haskell2010
+

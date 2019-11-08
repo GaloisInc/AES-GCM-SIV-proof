@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -e
+
+DIR=verif-src
+TGT=proof_target
+EXE=Proof
+
+cabal new-build $EXE
+make -C $DIR
+objdump -D $DIR/$TGT > disassembled
+objdump -t $DIR/$TGT > symbols
+./$EXE

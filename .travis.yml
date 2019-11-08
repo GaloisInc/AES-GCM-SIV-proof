@@ -6,10 +6,12 @@ cache:
         - deps
 addons:
   apt:
+    sources:
+      - ubuntu-toolchain-r-test
     packages:
       - clang-3.8
       - llvm-3.8
-
+      - gcc-7
 
 os:
   - linux
@@ -18,9 +20,19 @@ env:
   - SAWPROOF=ref-128
   - SAWPROOF=ref-256
 
+before_install:
+  - git submodule update --init
+
 install:
   - . .travis/install_saw.sh
 
 script:
   - cd proof/$SAWPROOF
   - travis_wait 50 make
+  - cp -n AES-GCM-SIV/AES_GCM_SIV_128/AES_GCM_SIV_128_Performance_Code/* asm/verif-src || true
+  - make -C asm/verif-src
+  - cd asm
+  - Proof
+  - rm cryptol/Sizes.cry
+  - cp cryptol/Sizes2.cry cryptol/Sizes.cry
+  - Proof

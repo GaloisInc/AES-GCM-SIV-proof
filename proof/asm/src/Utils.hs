@@ -59,7 +59,7 @@ newProofIO ::
   IO Integer
 newProofIO fun strategy pre =
   do putStrLn (replicate 80 '-')
-     let elf = "./verif-src/proof_target"
+     let elf = "./proof_target"
          cry = Just "cryptol/Asm128.cry"
 
          display _ = return () {-

@@ -1,5 +1,0 @@
-module GCM_SIV_256 = Common::AES_GCM_SIV where
-
-type Mode = 1         // AES 128
-type AAD  = 36 * 8    // Size of additional authentication data in bits
-

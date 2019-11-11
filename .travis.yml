@@ -2,8 +2,9 @@ sudo: required
 dist: trusty
 language: c
 cache:
-    directories:
-        - deps
+  directories:
+    - .stack-work
+    - saw-script/.stack-work
 addons:
   apt:
     sources:
@@ -17,22 +18,21 @@ os:
   - linux
 
 env:
-  - SAWPROOF=ref-128
-  - SAWPROOF=ref-256
+  - PROOF=ref-128
+  - PROOF=ref-256
+  - PROOF=asm
 
 before_install:
   - git submodule update --init
+  - cd saw-script; git submodule update --init
+  - cd saw-script/deps/abcBridge; git submodule update --init
 
 install:
-  - . .travis/install_saw.sh
+  - wget -qO- https://get.haskellstack.org/ | sh
+  - curl --retry 3 https://s3-us-west-2.amazonaws.com/s2n-public-test-dependencies/z3-2017-04-04-Ubuntu14.04-64 --output bin/z3; chmod +x bin/z3
+  - curl --retry 3 https://s3-us-west-2.amazonaws.com/s2n-public-test-dependencies/yices_smt2-linux-static-2017-06-21 --output bin/yices-smt2; chmod +x bin/yices-smt2
+  - stack install saw-script --local-bin-path bin
+  - stack build dasm
 
 script:
-  - cd proof/$SAWPROOF
-  - travis_wait 50 make
-  - cp -n AES-GCM-SIV/AES_GCM_SIV_128/AES_GCM_SIV_128_Performance_Code/* asm/verif-src || true
-  - make -C asm/verif-src
-  - cd asm
-  - Proof
-  - rm cryptol/Sizes.cry
-  - cp cryptol/Sizes2.cry cryptol/Sizes.cry
-  - Proof
+  - make -C proof/$PROOF

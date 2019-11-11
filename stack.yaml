@@ -1,0 +1,50 @@
+flags: {}
+packages:
+  - proof/asm
+  - saw-script
+  - saw-script/deps/flexdis86
+  - saw-script/deps/parameterized-utils
+  - saw-script/deps/macaw/base
+  - saw-script/deps/macaw/x86
+  - saw-script/deps/macaw/symbolic
+  - saw-script/deps/macaw/x86_symbolic
+  - saw-script/deps/elf-edit
+  - saw-script/deps/dwarf
+  - saw-script/deps/crucible/crucible
+  - saw-script/deps/crucible/crucible-llvm
+  - saw-script/deps/crucible/crucible-saw
+  - saw-script/deps/crucible/galois-matlab
+  - saw-script/deps/llvm-pretty
+  - saw-script/deps/saw-core
+  - saw-script/deps/saw-core-aig
+  - saw-script/deps/saw-core-sbv
+  - saw-script/deps/abcBridge
+  - saw-script/deps/cryptol-verifier
+  - saw-script/deps/cryptol
+  - saw-script/deps/llvm-verifier
+  - saw-script/deps/jvm-verifier
+  - saw-script/deps/jvm-parser
+  - saw-script/deps/llvm-pretty-bc-parser
+extra-deps:
+  - IfElse-0.85
+  - fgl-visualize-0.1.0.1
+  - dotgen-0.4.2
+  - monad-supply-0.6
+  - simple-smt-0.7.1
+  - GraphSCC-1.0.4
+  - monadLib-3.7.3
+  - presburger-1.3.1
+  - smtLib-1.0.8
+  - sbv-7.6
+  - tasty-hunit-0.10.0.1
+  - aig-0.2.5
+resolver: lts-10.6
+
+# nix:
+#   enable: true
+#   pure: false
+#   packages:
+#   - z3
+#   - zlib
+#   - wget
+#   - unzip

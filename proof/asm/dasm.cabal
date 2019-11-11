@@ -6,7 +6,6 @@ author:              Iavor Diatchki
 maintainer:          iavor.diatchki@gmail.com
 category:            Language
 build-type:          Simple
-extra-source-files:  ChangeLog.md
 cabal-version:       >=1.10
 
 

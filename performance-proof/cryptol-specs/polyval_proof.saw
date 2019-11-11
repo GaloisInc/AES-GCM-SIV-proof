@@ -1,3 +1,0 @@
-import "intrinsics.cry";
-
-prove_print rme {{polyval_equiv}};

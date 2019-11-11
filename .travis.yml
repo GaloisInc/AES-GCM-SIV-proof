@@ -28,6 +28,7 @@ before_install:
   - cd saw-script/deps/abcBridge; git submodule update --init
 
 install:
+  - mkdir bin
   - wget -qO- https://get.haskellstack.org/ | sh
   - curl --retry 3 https://s3-us-west-2.amazonaws.com/s2n-public-test-dependencies/z3-2017-04-04-Ubuntu14.04-64 --output bin/z3; chmod +x bin/z3
   - curl --retry 3 https://s3-us-west-2.amazonaws.com/s2n-public-test-dependencies/yices_smt2-linux-static-2017-06-21 --output bin/yices-smt2; chmod +x bin/yices-smt2

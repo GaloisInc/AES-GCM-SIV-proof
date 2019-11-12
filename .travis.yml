@@ -39,4 +39,5 @@ script:
   - export PATH=$(pwd)/bin:$PATH
   - echo $PATH
   - ls -la bin
-  - make -C proof/$PROOF
+  - gcc-7 --version
+  - travis_wait 50 make -C proof/$PROOF

@@ -3,8 +3,7 @@ dist: trusty
 language: c
 cache:
   directories:
-    - .stack-work
-    - saw-script/.stack-work
+    - "~/.stack"
 addons:
   apt:
     sources:

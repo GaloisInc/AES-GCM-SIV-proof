@@ -36,4 +36,4 @@ install:
   - stack build dasm
 
 script:
-  - make -C proof/$PROOF
+  - PATH=bin:$PATH make -C proof/$PROOF

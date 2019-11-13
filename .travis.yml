@@ -1,6 +1,8 @@
 sudo: required
 language: c
 dist: trusty # abcBridge doesn't build on Xenial
+os:
+  - linux
 
 git:
   submodules: false # by default, travis updates all submodules recursively
@@ -18,9 +20,6 @@ addons:
       - clang-3.8 # clang and llvm-link to generate bitcode for the saw-0.2 we pull in
       - llvm-3.8
       - gcc-7 # a newer gcc to compile and link the executable for the x64 proof
-
-os:
-  - linux
 
 env:
   - PROOF=ref-128
@@ -46,10 +45,7 @@ install:
   - mkdir saw; cd saw
   - curl https://s3-us-west-2.amazonaws.com/s2n-public-test-dependencies/saw-0.2-2018-01-21-Ubuntu14.04-64.tar.gz --output saw.tar.gz;
   - tar -xzf saw.tar.gz --strip-components=1; cp bin/saw ../bin/saw; cd ..
-  - ./bin/saw --version
 
 script:
   - export PATH=$(pwd)/bin:$PATH
-  - echo $PATH
-  - ls -la bin
   - travis_wait 30 make -C proof/$PROOF

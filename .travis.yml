@@ -1,5 +1,6 @@
 sudo: required
 language: c
+dist: trusty
 git:
   submodules: false
 cache:
@@ -44,4 +45,4 @@ script:
   - export PATH=$(pwd)/bin:$PATH
   - echo $PATH
   - ls -la bin
-  - travis_wait 50 make -C proof/$PROOF
+  - make -C proof/$PROOF

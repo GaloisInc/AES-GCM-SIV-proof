@@ -1,4 +1,4 @@
-CC = gcc-7
+# CC = gcc-7
 CFLAGS = -Wall -Wextra -no-pie -O2 -maes -mavx -fno-stack-protector
 SAW = saw
 SRCS = $(shell find verif-src -type f \( -name "*.c" -o -name "*.s" \))
@@ -13,7 +13,7 @@ prove: verif-src/proof_target
 	stack exec proof
 
 verif-src/proof_target: $(SRCS) $(HEADERS)
-	$(CC) $(CFLAGS) $(SRCS) -o $@
+	gcc-7 $(CFLAGS) $(SRCS) -o $@
 
 clean:
 	rm verif-src/proof_target

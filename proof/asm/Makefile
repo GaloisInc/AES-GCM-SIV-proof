@@ -9,6 +9,7 @@ HEADERS = $(shell find verif-src -type f -name "*.h")
 all: prove
 
 prove: proof_target
+	ldd proof_target
 	stack exec Proof
 
 proof_target: $(SRCS) $(HEADERS)

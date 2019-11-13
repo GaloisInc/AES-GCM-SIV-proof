@@ -3,12 +3,12 @@ module X86 where
 import AES128
 
 aesenc : [128] -> [128] -> [128]
-aesenc key pt =
+aesenc pt key =
   aesStateToBits (aes_round (aesStateFromBits key)
                             (aesStateFromBits pt))
 
 aesenclast : [128] -> [128] -> [128]
-aesenclast key pt =
+aesenclast pt key =
   aesStateToBits (aes_final_round (aesStateFromBits key)
                                   (aesStateFromBits pt))
 

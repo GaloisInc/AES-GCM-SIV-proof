@@ -4,11 +4,7 @@ module Main where
 import System.Exit(exitFailure)
 import Control.Exception(SomeException(SomeException),catch)
 
-import SAWScript.Prover.SBV(satUnintSBV,yices)
-import SAWScript.Prover.RME(satRME)
-import SAWScript.Prover.ABC(satABC)
-
-import SAWScript.X86SpecNew hiding (cryConst, cryTerm)
+import SAWScript.X86Spec hiding (cryConst, cryTerm)
 import Data.Macaw.X86.X86Reg
 
 import Utils
@@ -16,51 +12,51 @@ import Utils
 
 main :: IO ()
 main =
-  do fun_GFMUL  <- newProof "_GFMUL" satRME spec_GFMUL
-     fun_GFMUL' <- newProof "GFMUL"  satRME spec_GFMUL
+  do fun_GFMUL  <- newProof "_GFMUL" useRME spec_GFMUL
+     fun_GFMUL' <- newProof "GFMUL"  useRME spec_GFMUL
 
      -- used in Decrypt
      _ <- newProofSizes "Polyval_Horner"
-            (satUnintSBV yices ["dot"])
+            (useSMT ["dot"])
             $ \aadSize _msgSize -> spec_Polyval_Horner "AAD" fun_GFMUL aadSize
 
      fun_Polyval_Horner_AAD_MSG_LENBLK <-
         newProofSizes "Polyval_Horner_AAD_MSG_LENBLK"
-            (satUnintSBV yices ["dot"])
+            (useSMT ["dot"])
             $ spec_Polyval_Horner_AAD_MSG_LENBLK fun_GFMUL
 
      fun_AES_128_ENC_x4 <- newProof "AES_128_ENC_x4"
-           (satUnintSBV yices [ "aes_round", "aes_final_round" ])
+           (useSMT [ "aes_round", "aes_final_round" ])
            spec_AES_128_ENC_x4
 
-     fun_AES_KS_ENC_x1 <- newProof "AES_KS_ENC_x1" satABC spec_AES_KS_ENC_x1
+     fun_AES_KS_ENC_x1 <- newProof "AES_KS_ENC_x1" useABC spec_AES_KS_ENC_x1
 
      fun_ENC_MSG_x4 <- newProofSizes "ENC_MSG_x4"
-            (satUnintSBV yices [ "aes_round", "aes_final_round" ])
+            (useSMT [ "aes_round", "aes_final_round" ])
             $ \_aadSize msgSize -> spec_ENC_MSG_x4 msgSize
 
      -- Used for larger sizes
      fun_ENC_MSG_x8 <- newProofSizes "ENC_MSG_x8"
-            (satUnintSBV yices [ "aes_round", "aes_final_round" ])
+            (useSMT [ "aes_round", "aes_final_round" ])
             $ \_aadSize msgSize -> spec_ENC_MSG_x8 msgSize
 
      fun_INIT_Htable <- newProof "INIT_Htable"
-            (satUnintSBV yices ["dot"])
+            (useSMT ["dot"])
             (spec_INIT_Htable fun_GFMUL')
 
      fun_Polyval_Htable <- newProofSizes "Polyval_Htable"
-          satRME
+          useRME
           $ \aadSize _msgSize -> spec_Polyval_Htable "AAD" aadSize
 
      _fun_Polyval_Htable <- newProofSizes "Polyval_Htable"
-          satRME
+          useRME
           $ \_aadSize msgSize -> spec_Polyval_Htable "MSG" msgSize
 
      _fun_Polyval_Htable <- newProof "Polyval_Htable"
-          satRME (spec_Polyval_Htable "BLK" 16)
+          useRME (spec_Polyval_Htable "BLK" 16)
 
      _ <- newProofSizes "AES_GCM_SIV_Encrypt"
-            (satUnintSBV yices [ "aes", "ExpandKey"
+            (useSMT [ "aes", "ExpandKey"
                                , "dot", "counter_mode" ])
             $ \aadSize msgSize -> spec_AES_GCM_SIV_Encrypt
                                       fun_GFMUL
@@ -145,14 +141,14 @@ spec_GFMUL =
         , checkPreserves (InReg R9)
         , checkPreserves (InReg R10)
         , checkPreserves (InReg R11)
-        , checkCryPostDef (Loc res) "dot256" [ cryPre res, cryPre h ]
+        , checkCryPostDef (Loc res) "dot512" [ cryPre res, cryPre h ]
         ]
     , specGlobsRO = []
     , specCalls = []
     }
   where
-  res = InReg (YMM 0)
-  h   = InReg (YMM 1)
+  res = InReg (ZMM 0)
+  h   = InReg (ZMM 1)
 
 
 

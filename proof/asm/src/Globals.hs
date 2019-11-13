@@ -2,7 +2,7 @@
 module Globals where
 
 import Data.ByteString(ByteString)
-import SAWScript.X86SpecNew(Unit(..))
+import SAWScript.X86Spec(Unit(..))
 
 globals :: [(ByteString,Integer,Unit)]
 globals =

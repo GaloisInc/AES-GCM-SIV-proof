@@ -3,6 +3,7 @@ language: c
 cache:
   directories:
     - "~/.stack"
+    - "~/proof/asm/deps/saw-script/.stack-work"
 addons:
   apt:
     sources:
@@ -26,18 +27,19 @@ before_install:
   - cd deps/abcBridge; git submodule update --init
   - cd ../../..
 
+
 install:
   - mkdir bin
   - wget -qO- https://get.haskellstack.org/ | sh
   - curl --retry 3 https://s3-us-west-2.amazonaws.com/s2n-public-test-dependencies/z3-2017-04-04-Ubuntu14.04-64 --output bin/z3; chmod +x bin/z3
   - curl --retry 3 https://s3-us-west-2.amazonaws.com/s2n-public-test-dependencies/yices_smt2-linux-static-2017-06-21 --output bin/yices-smt2; chmod +x bin/yices-smt2
-  - stack install saw-script --local-bin-path bin
-  - stack build dasm
+  - mkdir saw; cd saw
+  - curl https://s3-us-west-2.amazonaws.com/s2n-public-test-dependencies/saw-0.2-2018-01-21-Ubuntu14.04-64.tar.gz --output saw.tar.gz;
+  - tar -xzf saw.tar.gz --strip-components=1; cp bin/saw ../bin/saw; cd ..
+  - ./bin/saw --version
 
 script:
   - export PATH=$(pwd)/bin:$PATH
   - echo $PATH
   - ls -la bin
-  - gcc-7 --version
-  - cd saw-script; git status; cd ..
   - travis_wait 50 make -C proof/$PROOF

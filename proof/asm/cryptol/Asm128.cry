@@ -8,6 +8,9 @@ import Sizes
 dot256 : [256] -> [256] -> [256]
 dot256 (_ # res) (_ # h) = 0 # dot res h
 
+dot512 : [512] -> [512] -> [512]
+dot512 (_ # res) (_ # h) = 0 # dot res h
+
 Polyval_Horner_gen_def :
   {n} fin n => [1][128] -> [n][8] -> [1][128] -> [1][128]
 Polyval_Horner_gen_def [h] i [t] = [ polyvalFrom h (leLoadBlocks i) t ]

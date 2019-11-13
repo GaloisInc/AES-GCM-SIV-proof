@@ -8,12 +8,12 @@ HEADERS = $(shell find verif-src -type f -name "*.h")
 
 all: prove
 
-prove: proof_target
-	ldd proof_target
-	stack exec Proof
+prove: verif-src/proof_target
+	stack build
+	stack exec proof
 
-proof_target: $(SRCS) $(HEADERS)
+verif-src/proof_target: $(SRCS) $(HEADERS)
 	$(CC) $(CFLAGS) $(SRCS) -o $@
 
 clean:
-	rm proof_target
+	rm verif-src/proof_target

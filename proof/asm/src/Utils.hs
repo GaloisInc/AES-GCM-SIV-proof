@@ -1,21 +1,24 @@
 {-# Language DataKinds, FlexibleContexts, GADTs, TypeOperators #-}
-module Utils (module Utils, module SAWScript.X86Spec) where
+module Utils (module Utils) where
 
 import GHC.TypeLits(type (<=), KnownNat)
 import System.IO(hFlush,stdout)
 import Data.ByteString(ByteString)
 import Control.Exception(catch)
 import System.Console.ANSI
-import qualified Data.Map as Map
 
 import Data.Parameterized.NatRepr(knownNat)
 
+import qualified Data.ABC.GIA as GIA
+
 import SAWScript.X86
-import SAWScript.X86Spec(Pre,Post,FunSpec(NewStyle))
-import SAWScript.X86SpecNew hiding (cryConst, cryTerm)
-import qualified SAWScript.X86SpecNew as New
+import SAWScript.X86Spec hiding (cryConst, cryTerm)
+import qualified SAWScript.X86Spec as New
 import SAWScript.Prover.SolverStats
-import SAWScript.Prover.Mode(ProverMode(Prove))
+import SAWScript.Prover.SBV(satUnintSBV,yices)
+import SAWScript.Prover.RME(satRME)
+import SAWScript.Prover.ABC(satABC)
+
 
 import Verifier.SAW.SharedTerm
 import Verifier.SAW.FiniteValue(FirstOrderValue)
@@ -59,7 +62,7 @@ newProofIO ::
   IO Integer
 newProofIO fun strategy pre =
   do putStrLn (replicate 80 '-')
-     let elf = "./proof_target"
+     let elf = "./verif-src/proof_target"
          cry = Just "cryptol/Asm128.cry"
 
          display _ = return () {-
@@ -71,7 +74,7 @@ newProofIO fun strategy pre =
                          -- debugPPReg M.R8  s
           --}
 
-     (ctx, addr, gs) <- proof linuxInfo elf cry globals (\_ _ -> return Map.empty)
+     (ctx, addr, gs) <- proof linuxInfo elf cry globals
                     Fun { funName = fun
                         , funSpec = NewStyle pre display }
      mapM_ (solveGoal strategy ctx) gs
@@ -83,7 +86,6 @@ newProofIO fun strategy pre =
 
 
 type Prover = SharedContext ->
-              ProverMode ->
               Term ->
               IO (Maybe [(String,FirstOrderValue)], SolverStats)
 
@@ -179,11 +181,11 @@ solveGoal prover ctx g =
   do term <- gGoal ctx g
      putStrLn "Proving goal"
      putStrLn ("  Source:   " ++ show (gLoc g))
-     putStrLn ("  Avoiding: " ++ ppReason (gMessage g))
+     putStrLn ("  Avoiding: " ++ show (gMessage g))
      putStr "  Working... "
      hFlush stdout
      -- writeFile "GG.hs" (scPrettyTerm defaultPPOpts term)
-     (mb, stats) <- prover ctx Prove term
+     (mb, stats) <- prover ctx term
      putStrLn (ppStats stats)
      case mb of
        Nothing -> say Green "  Success!\n"
@@ -199,12 +201,16 @@ say c x =
      putStr x
      setSGR [Reset]
 
-ppReason :: Show a => Maybe a -> String
-ppReason x =
-  case x of
-    Nothing -> "(unknown)"
-    Just a  -> show a
+--------------------------------------------------------------------------------
+-- Strategies
 
+useRME :: Prover
+useRME = satRME
 
+useABC :: Prover
+useABC = satABC GIA.proxy
+
+useSMT :: [String] -> Prover
+useSMT u = satUnintSBV yices u Nothing
 
 

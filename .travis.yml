@@ -25,10 +25,10 @@ env:
 
 before_install:
   - git submodule update --init
-  - cd saw-script; git submodule update --init
+  - cd proof/asm/deps/saw-script; git submodule update --init
   - cd deps/abcBridge; git submodule update --init
-  - cd ../../..
-
+  - cd ../..
+  - cd ../../../..
 
 install:
   - mkdir bin

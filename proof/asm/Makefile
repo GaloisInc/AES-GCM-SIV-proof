@@ -9,8 +9,8 @@ HEADERS = $(shell find verif-src -type f -name "*.h")
 all: prove
 
 prove: verif-src/proof_target
-	stack build
-	stack exec proof
+	stack build saw-script --only-dependencies
+	# stack exec proof
 
 verif-src/proof_target: $(SRCS) $(HEADERS)
 	gcc-7 $(CFLAGS) $(SRCS) -o $@

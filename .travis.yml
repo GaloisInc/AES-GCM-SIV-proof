@@ -39,4 +39,5 @@ script:
   - echo $PATH
   - ls -la bin
   - gcc-7 --version
+  - cd saw-script; git status; cd ..
   - travis_wait 50 make -C proof/$PROOF

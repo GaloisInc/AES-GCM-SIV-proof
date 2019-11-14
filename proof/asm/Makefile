@@ -10,6 +10,7 @@ all: prove
 
 prove: verif-src/proof_target
 	stack build saw-script --only-dependencies
+	stack build
 	stack exec proof
 
 verif-src/proof_target: $(SRCS) $(HEADERS)

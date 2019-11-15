@@ -58,7 +58,8 @@ jobs:
         # download and install Stack, so we don't need to worry about GHC or Cabal package versions
         - curl -sSL https://get.haskellstack.org/ | sh
         # make sure all of this is cached
-        - stack build saw-script --only-dependencies
+        - cd proof/asm; stack build saw-script --only-dependencies
+      env: PROOF=asm
       script: true
     - stage: test
       install: true

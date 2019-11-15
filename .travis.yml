@@ -12,6 +12,10 @@ cache:
     - "~/.stack" # don't rebuild all of the dependencies
     - "~/proof/asm/deps/saw-script/.stack-work" # don't rebuild saw-script and its submodules
 
+stages:
+  - cache
+  - test
+
 addons:
   apt:
     sources:
@@ -48,7 +52,7 @@ script:
 
 jobs:
   include:
-    - stage: prepare cache
+    - stage: cache
       install:
         - mkdir bin
         # download and install Stack, so we don't need to worry about GHC or Cabal package versions
@@ -58,5 +62,6 @@ jobs:
       script: true
     - stage: test
       install: true
+      env: PROOF=asm
       script:
         - make -C proof/asm

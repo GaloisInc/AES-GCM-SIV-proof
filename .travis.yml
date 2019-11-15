@@ -24,7 +24,6 @@ addons:
 env:
   - PROOF=ref-128
   - PROOF=ref-256
-  - PROOF=asm
 
 before_install:
   # only clone the submodules that we need
@@ -35,17 +34,29 @@ before_install:
   - cd ../../../..
 
 install:
-  - mkdir bin
-  # download and install Stack, so we don't need to worry about GHC or Cabal package versions
-  - curl -sSL https://get.haskellstack.org/ | sh
   # download the correct versions of Z3 and Yices
   - curl --retry 3 https://s3-us-west-2.amazonaws.com/s2n-public-test-dependencies/z3-2017-04-04-Ubuntu14.04-64 --output bin/z3; chmod +x bin/z3
   - curl --retry 3 https://s3-us-west-2.amazonaws.com/s2n-public-test-dependencies/yices_smt2-linux-static-2017-06-21 --output bin/yices-smt2; chmod +x bin/yices-smt2
-  # download the correct version of SAW
+  # download the correct version of SAW to run the ref-128 and ref-256 proofs
   - mkdir saw; cd saw
   - curl https://s3-us-west-2.amazonaws.com/s2n-public-test-dependencies/saw-0.2-2018-01-21-Ubuntu14.04-64.tar.gz --output saw.tar.gz;
   - tar -xzf saw.tar.gz --strip-components=1; cp bin/saw ../bin/saw; cd ..
 
 script:
   - export PATH=$(pwd)/bin:$PATH
-  - travis_wait 30 make -C proof/$PROOF
+  - travis_wait 50 make -C proof/$PROOF
+
+jobs:
+  include:
+    - stage: prepare cache
+      install:
+        - mkdir bin
+        # download and install Stack, so we don't need to worry about GHC or Cabal package versions
+        - curl -sSL https://get.haskellstack.org/ | sh
+        # make sure all of this is cached
+        - stack build saw-script --only-dependencies
+      script: true
+    - stage: test
+      install: true
+      script:
+        - make -C proof/asm

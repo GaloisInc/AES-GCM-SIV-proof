@@ -1,6 +1,6 @@
 sudo: required
 language: c
-dist: trusty # abcBridge doesn't build on Xenial
+# dist: trusty # abcBridge doesn't build on Xenial
 os:
   - linux
 

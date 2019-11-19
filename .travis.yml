@@ -20,7 +20,7 @@ addons:
   apt:
     sources:
       - ubuntu-toolchain-r-test
-      - ppa:sri-csl/formal-methods
+      - sourceline: 'ppa:sri-csl/formal-methods'
     packages:
       - clang-3.8 # clang and llvm-link to generate bitcode for the saw-0.2 we pull in
       - llvm-3.8

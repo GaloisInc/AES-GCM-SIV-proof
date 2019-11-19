@@ -69,4 +69,5 @@ jobs:
       env: PROOF=asm
       script:
         - curl -sSL https://get.haskellstack.org/ | sh
+        - export PATH=$(pwd)/bin:$PATH
         - make -C proof/asm

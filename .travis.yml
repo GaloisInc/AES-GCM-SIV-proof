@@ -1,6 +1,6 @@
 sudo: required
 language: c
-# dist: trusty # abcBridge doesn't build on Xenial
+dist: trusty # abcBridge doesn't build on Xenial
 os:
   - linux
 
@@ -20,13 +20,10 @@ addons:
   apt:
     sources:
       - ubuntu-toolchain-r-test
-      - sourceline: 'ppa:sri-csl/formal-methods'
     packages:
       - clang-3.8 # clang and llvm-link to generate bitcode for the saw-0.2 we pull in
       - llvm-3.8
       - gcc-7 # a newer gcc to compile and link the executable for the x64 proof
-      - yices2
-      - z3
 
 env:
   - PROOF=ref-128
@@ -59,6 +56,8 @@ jobs:
     - stage: cache
       install:
         - mkdir bin
+        - curl --retry 3 https://s3-us-west-2.amazonaws.com/s2n-public-test-dependencies/z3-2017-04-04-Ubuntu14.04-64 --output bin/z3; chmod +x bin/z3
+        - curl --retry 3 https://s3-us-west-2.amazonaws.com/s2n-public-test-dependencies/yices_smt2-linux-static-2017-06-21 --output bin/yices-smt2; chmod +x bin/yices-smt2
         # download and install Stack, so we don't need to worry about GHC or Cabal package versions
         - curl -sSL https://get.haskellstack.org/ | sh
         # make sure all of this is cached

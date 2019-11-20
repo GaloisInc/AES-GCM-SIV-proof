@@ -65,7 +65,6 @@ jobs:
       env: PROOF=asm
       script: true
     - stage: test
-      install: true
       env: PROOF=asm
       script:
         - curl -sSL https://get.haskellstack.org/ | sh

@@ -1,26 +1,71 @@
 sudo: required
-dist: trusty
 language: c
-cache:
-    directories:
-        - deps
-addons:
-  apt:
-    packages:
-      - clang-3.8
-      - llvm-3.8
-
-
+dist: trusty # abcBridge doesn't build on Xenial
 os:
   - linux
 
+git:
+  submodules: false # by default, travis updates all submodules recursively
+
+cache:
+  directories:
+    - "~/.stack" # don't rebuild all of the dependencies
+
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - clang-3.8 # clang and llvm-link to generate bitcode for the saw-0.2 we pull in
+      - llvm-3.8
+      - gcc-7 # a newer gcc to compile and link the executable for the x64 proof
+
+stages:
+  - cache
+  - test
+
 env:
-  - SAWPROOF=ref-128
-  - SAWPROOF=ref-256
+  - PROOF=ref-128
+  - PROOF=ref-256
+
+before_install:
+  # only clone the submodules that we need
+  - git submodule update --init
+  - cd proof/asm/deps/saw-script; git submodule update --init
+  - cd deps/abcBridge; git submodule update --init
+  - cd ../..
+  - cd ../../../..
 
 install:
-  - . .travis/install_saw.sh
+  - mkdir bin
+  # download the correct versions of Z3 and Yices
+  - curl --retry 3 https://s3-us-west-2.amazonaws.com/s2n-public-test-dependencies/z3-2017-04-04-Ubuntu14.04-64 --output bin/z3; chmod +x bin/z3
+  - curl --retry 3 https://s3-us-west-2.amazonaws.com/s2n-public-test-dependencies/yices_smt2-linux-static-2017-06-21 --output bin/yices-smt2; chmod +x bin/yices-smt2
+  # download the correct version of SAW to run the ref-128 and ref-256 proofs
+  - mkdir saw; cd saw
+  - curl https://s3-us-west-2.amazonaws.com/s2n-public-test-dependencies/saw-0.2-2018-01-21-Ubuntu14.04-64.tar.gz --output saw.tar.gz;
+  - tar -xzf saw.tar.gz --strip-components=1; cp bin/saw ../bin/saw; cd ..
 
 script:
-  - cd proof/$SAWPROOF
-  - travis_wait 50 make
+  - export PATH=$(pwd)/bin:$PATH
+  - travis_wait 50 make -C proof/$PROOF
+
+jobs:
+  include:
+    - stage: cache
+      install:
+        - mkdir bin
+        - curl --retry 3 https://s3-us-west-2.amazonaws.com/s2n-public-test-dependencies/z3-2017-04-04-Ubuntu14.04-64 --output bin/z3; chmod +x bin/z3
+        - curl --retry 3 https://s3-us-west-2.amazonaws.com/s2n-public-test-dependencies/yices_smt2-linux-static-2017-06-21 --output bin/yices-smt2; chmod +x bin/yices-smt2
+        # download and install Stack, so we don't need to worry about GHC or Cabal package versions
+        - curl -sSL https://get.haskellstack.org/ | sh
+        # make sure all of this is cached
+        - cd proof/asm; stack build --only-dependencies abcBridge crucible
+      env: PROOF=asm
+      script: true
+    - stage: test
+      env: PROOF=asm
+      script:
+        - curl -sSL https://get.haskellstack.org/ | sh
+        - export PATH=$(pwd)/bin:$PATH
+        - make -C proof/asm

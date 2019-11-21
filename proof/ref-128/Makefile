@@ -1,6 +1,6 @@
 CLANG=clang-3.8
 LLVM_LINK=llvm-link-3.8
-SAW=saw
+SAW=../../bin/saw
 
 all: proof
 

@@ -1,0 +1,140 @@
+module GenAsm128 where
+
+import X86
+import AES128
+import AES128_GCM_SIV
+import Sizes
+
+dot256 : [256] -> [256] -> [256]
+dot256 (_ # res) (_ # h) = 0 # dot res h
+
+dot512 : [512] -> [512] -> [512]
+dot512 (_ # res) (_ # h) = 0 # dot res h
+
+Polyval_Horner_gen_def :
+  {n} fin n => [1][128] -> [n][8] -> [1][128] -> [1][128]
+Polyval_Horner_gen_def [h] i [t] = [ polyvalFrom h (leLoadBlocks i) t ]
+
+Polyval_Horner_AAD_def : [1][128] -> [AAD_Size][8] -> [1][128] -> [1][128]
+Polyval_Horner_AAD_def = Polyval_Horner_gen_def
+
+Polyval_Horner_MSG_def : [1][128] -> [MSG_Size][8] -> [1][128] -> [1][128]
+Polyval_Horner_MSG_def = Polyval_Horner_gen_def
+
+Polyval_Horner_BLK_def : [1][128] -> [16][8] -> [1][128] -> [1][128]
+Polyval_Horner_BLK_def = Polyval_Horner_gen_def
+
+Polyval_Horner_AAD_MSG_def :
+  [16][8] -> [AAD_Size][8] -> [MSG_Size][8] -> [2][64] -> [16][8] -> [1][128]
+Polyval_Horner_AAD_MSG_def h aad pt lblk t =
+  [ polyvalFrom (leLoad h) work (leLoad t) ]
+  where
+  work = leLoadBlocks aad
+       # leLoadBlocks pt
+       # leLoadBlocks [ b | qword <- lblk, b <- leStore qword ]
+
+INIT_Htable_def: [1][128] -> [8][128]
+INIT_Htable_def [h] = INIT_Htable h
+
+Polyval_HTable_gen_def :
+  {n} (fin n) => [8][128] -> [n][8] -> [1][128] -> [1][128]
+Polyval_HTable_gen_def tbl data [t] =
+  [ polyvalHtableNH tbl (leLoadBlocks data) t ]
+
+Polyval_HTable_AAD_def : [8][128] -> [AAD_Size][8] -> [1][128] -> [1][128]
+Polyval_HTable_AAD_def = Polyval_HTable_gen_def
+
+Polyval_HTable_MSG_def : [8][128] -> [MSG_Size][8] -> [1][128] -> [1][128]
+Polyval_HTable_MSG_def = Polyval_HTable_gen_def
+
+Polyval_HTable_BLK_def : [8][128] -> [16][8] -> [1][128] -> [1][128]
+Polyval_HTable_BLK_def = Polyval_HTable_gen_def
+
+
+Polyval_HTable_call_AAD_def : [8][128] -> [AAD_Size][8] -> [1][128] -> [1][128]
+Polyval_HTable_call_AAD_def hs = Polyval_Horner_AAD_def (take hs)
+
+Polyval_HTable_call_MSG_def : [8][128] -> [MSG_Size][8] -> [1][128] -> [1][128]
+Polyval_HTable_call_MSG_def hs = Polyval_Horner_MSG_def (take hs)
+
+Polyval_HTable_call_BLK_def : [8][128] -> [16][8] -> [1][128] -> [1][128]
+Polyval_HTable_call_BLK_def hs = Polyval_Horner_BLK_def (take hs)
+
+polyProp :
+  {x,y} (fin x, fin y) => [128] -> [x][128] -> [y][128] -> [128] -> Bool
+polyProp h xs ys t =
+  polyvalFrom h ys (polyvalFrom h xs t) == polyvalFrom h (xs # ys) t
+
+
+// See `derive_key` in the spec.
+AES_128_ENC_x4_def : [16][8] -> [11][128] -> [4][128]
+AES_128_ENC_x4_def iv' keys = [ aesWithKeys keys (iv # i) | i <- [ 0 .. 3 ] ]
+  where
+  _ # (iv : [96]) = leLoad iv'
+
+
+/* Encrypt the pt with the given key, expanding it as you go.
+The result it the encrypted text and the expanded key */
+AES_KS_ENC_x1_def1 : [16][8]  -> [11][128]
+AES_KS_ENC_x1_def1 ikey =
+  aesKeyToBits (ExpandKey (beLoad ikey))
+  // NOTE the BIG ENDIAN load on the key
+
+AES_KS_ENC_x1_def2 : [11][128] -> [16][8] -> [1][128]
+AES_KS_ENC_x1_def2 keys pt = [ aesWithKeys keys (leLoad pt) ]
+
+ENC_MSG_def :
+  [11][128] -> [16][8] -> [MSG_Size][8] -> [MSG_Size][8]
+ENC_MSG_def keys tag pt =
+  leStoreBlocks (counter_mode K2 (0b1 # tUpper, tLower) M)
+  where
+  K2 = aesKeysFromBits keys
+  M  = leLoadBlocks pt
+  _ # tUpper # tLower = leLoad tag
+
+
+// NOTE the BIG ENDIAN loads on the AAD and the Message
+AES_GMC_SIV_Encrypt_pair :
+  [11][128] -> [12][8] -> [AAD_Size][8] -> [MSG_Size][8] ->
+                                                    ([8 * MSG_Size], [128])
+AES_GMC_SIV_Encrypt_pair keys iv aad pt =
+  gcm_siv_plus ks nonce (beLoad aad) (beLoad pt)
+  where
+  ks    = derive_key_expanded (aesKeysFromBits keys) nonce
+  nonce = leLoad iv
+
+AES_GMC_SIV_Encrypt_TAG_def :
+  [11][128] -> [12][8] -> [AAD_Size][8] -> [MSG_Size][8] -> [1][128]
+AES_GMC_SIV_Encrypt_TAG_def keys iv add pt = [ tag ]
+  where (_,tag) = AES_GMC_SIV_Encrypt_pair keys iv add pt
+
+AES_GMC_SIV_Encrypt_CT_def :
+  [11][128] -> [12][8] -> [AAD_Size][8] -> [MSG_Size][8] -> [MSG_Size][8]
+AES_GMC_SIV_Encrypt_CT_def keys iv add pt = beStore ct
+  where (ct,_) = AES_GMC_SIV_Encrypt_pair keys iv add pt
+
+
+
+
+
+// -----------------------------------------------------------------------------
+
+aesWithKeys : [11][128] -> [128] -> [128]
+aesWithKeys ks pt = aes (aesKeysFromBits ks) pt
+
+aesKeysFromBits : [11][128] -> KeySchedule
+aesKeysFromBits ks = (k1,kRest,kLast)
+  where [k1] # kRest # [kLast] = [ aesStateFromBits m | m <- ks ]
+
+aesKeyToBits : KeySchedule -> [11][128]
+aesKeyToBits (k1,kRest,kLast) =
+  [ aesStateToBits k1 ] #
+  [ aesStateToBits x | x <- kRest ] #
+  [ aesStateToBits kLast ]
+
+leLoadBlocks : {n} (fin n) => [n][8] -> [n /^ 16][128]
+leLoadBlocks bytes = leLoadArray (bytes # zero)
+
+leStoreBlocks : {n} (fin n) => [n /^ 16][128] -> [n][8]
+leStoreBlocks arr = take (leStoreArray arr)
+

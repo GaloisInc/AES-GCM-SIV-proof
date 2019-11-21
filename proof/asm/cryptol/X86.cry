@@ -1,0 +1,55 @@
+module X86 where
+
+import AES128
+
+aesenc : [128] -> [128] -> [128]
+aesenc pt key =
+  aesStateToBits (aes_round (aesStateFromBits key)
+                            (aesStateFromBits pt))
+
+aesenclast : [128] -> [128] -> [128]
+aesenclast pt key =
+  aesStateToBits (aes_final_round (aesStateFromBits key)
+                                  (aesStateFromBits pt))
+
+
+// Carryles mulitplication
+clmul : [64] -> [64] -> [128]
+clmul x y = 0b0 # pmult x y
+
+
+// Access to Memory
+
+// Store a bit-value as bytes
+leStore : {n} (fin n) => [n * 8] -> [n][8]
+leStore bits = reverse (split bits)
+
+// Load a bit-value from bytes
+leLoad : {n} (fin n) => [n][8] -> [n*8]
+leLoad bytes = join (reverse bytes)
+
+beLoad : {n} (fin n) => [n][8] -> [n*8]
+beLoad bytes = join bytes
+
+beStore : {n} (fin n) => [n*8] -> [n][8]
+beStore bits = split bits
+
+// Load an array from bytes
+leLoadArray : {l,w} (fin l,fin w) => [l * w][8] -> [l][w * 8]
+leLoadArray bytes = [ leLoad mem | mem <- split bytes ]
+
+leStoreArray : {l,w} (fin l,fin w) => [l][w * 8] -> [l * w][8]
+leStoreArray arr = join [ leStore a | a <- arr ]
+
+aesStateFromBytes : [16][8] -> State
+aesStateFromBytes xs = transpose (split xs)
+
+aesStateToBytes : State -> [16][8]
+aesStateToBytes s = join (transpose s)
+
+aesStateFromBits : [128] -> State
+aesStateFromBits xs = aesStateFromBytes (leStore xs)
+
+aesStateToBits : State -> [128]
+aesStateToBits s = leLoad (aesStateToBytes s)
+

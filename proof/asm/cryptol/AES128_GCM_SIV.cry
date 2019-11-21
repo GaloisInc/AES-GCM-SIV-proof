@@ -1,0 +1,169 @@
+/* This module implements that AES-GCM-SIV mode of operations
+as desribed in:
+
+"AES-GCM-SIV: Specification and Analysis"
+by Shay Gueron, Adam Langley, and Yehuda Lindell
+
+See also:
+https://tools.ietf.org/html/draft-irtf-cfrg-gcmsiv-06
+*/
+
+module AES128_GCM_SIV where
+
+import AES128 as AES
+import Sizes
+
+type AAD  = 8 * AAD_Size
+
+type K  = 128
+type KS = AES::KeySchedule
+
+
+/** Note the weird byte-swapping business (also in `blockify` and `unblockify`)
+It is not quite clear in what format we want the inputs/outputs, but we
+do the swapping so that inputs/ouputs match the test vectors at
+https://tools.ietf.org/html/draft-irtf-cfrg-gcmsiv-06
+*/
+aes_gcm_siv :
+  {n} ((36 + 8) >= width n) =>
+      { key   : [K]
+      , nonce : [96]
+      , aad   : [AAD]
+      , msg   : [n]
+      } -> [n + 128]
+aes_gcm_siv input = c # byteSwap t
+  where
+  (c,t) = gcm_siv_plus (derive_key k' n') n' input.aad input.msg
+  k'    = byteSwap input.key
+  n'    = byteSwap input.nonce
+
+aes : KS -> [128] -> [128]
+aes ks v = byteSwap (AES::aesEncryptWithSchedule ks (byteSwap v))
+
+expandKey1 : [K] -> KS
+expandKey1 k = AES::ExpandKey (byteSwap k)
+
+/** See Figure 2 in Section 4 */
+derive_key : [K] -> [96] -> ([128], KS)
+derive_key K N = derive_key_expanded (expandKey1 1) N
+
+/** See Figure 2 in Section 4 */
+derive_key_expanded : KS -> [96] -> ([128], KS)
+derive_key_expanded ks N = (mkKey parts1, expandKey1 (mkKey parts2))
+  where
+  parts1 # parts2 = [ drop (aes ks (N # i)) | i <- take [ 0 ... ]  ]
+
+  mkKey : {n} (fin n) => [n][64] -> [64 * n]
+  mkKey xs = join (reverse xs)
+
+
+
+
+/** See Figure 1 in Section 3 */
+gcm_siv_plus :
+  {n} (64 >= width n) => ([128], KS) -> [96] -> [AAD] -> [n] -> ([n],[128])
+gcm_siv_plus (K1,K2) N AAD MSG = (unblockify Cs,TAG)
+  where
+
+  TAG     = aes K2 (0b0 # drop (T ^ (0 # N)))
+  T       = polyvalFrom K1 (A # M # [msg_len # aad_len]) 0
+  A       = blockify AAD
+  M       = blockify MSG
+  aad_len = `AAD : [64]
+  msg_len = `n   : [64]
+
+  _ # tUpper # tLower = TAG
+
+  Cs = counter_mode K2 (0b1 # tUpper, tLower) M
+
+counter_mode : {n} KS -> ([96],[32]) -> [n][128] -> [n][128]
+counter_mode K2 (tUpper,tLower) M =
+            [ aes K2 (tUpper # lower32 i) ^ m | m <- M | i <- [ 0 ... ] ]
+  where
+  lower32 i = tLower + i
+
+
+/** See Section 2.2 */
+polyvalFrom : {n} (fin n) => [128] -> [n][128] -> [128] -> [128]
+polyvalFrom H Xs start = psums ! 0
+  where psums = [start] # [ dot (s ^ x) H | s <- psums | x <- Xs ]
+
+//1 is not the identity for dot forcing it in next function instead
+polyvalFromNH : {n, hs} (fin n, fin hs, hs >=n) => [hs][128] -> [n][128] -> [128] -> [128]
+polyvalFromNH Hs Xs start = (sums ! 0) ^ (dot (([1] # Hs) @ (`n : [width n])) start)
+  where sums = [zero] # [ (dot X H) ^ sum'
+                        | sum' <- sums
+                        | X <- reverse Xs
+                        | H <- Hs ]
+
+
+polyvalHtableNH :
+  {n, hs} (fin n, fin hs, hs >=1) => [hs][128] -> [n][128] -> [128] -> [128]
+polyvalHtableNH Hs Xs start  = result
+  where sums = [start]
+             # [ polyvalFromNH Hs Xchunk sum'
+               | sum'   <- sums
+               | Xchunk <- split (take Xs): [n/hs][hs][128]
+               ]
+        type W = n % hs
+        remainder = drop Xs : [W][128]
+        result =
+          if `W == (0 : [width (n % hs)]) then
+            sums ! 0
+          else
+            polyvalFromNH Hs remainder (sums!0)
+
+
+pht : {a,size} (fin a,fin size,size>=2) => [128] -> [a][128] -> [128] -> Bit
+pht H Xs start =
+  polyvalHtableNH (INIT_Htable`{size} H) Xs start == polyvalFrom H Xs start
+
+dot : [128] -> [128] -> [128]
+dot x y = mult x (mult y x_neg_128)
+  where x_neg_128 = <| 1 + x^^114 + x^^121 + x^^124 + x^^127 |>
+        // This is x^(-128)
+
+
+mult : [128] -> [128] -> [128]
+mult x y = pmod (pmult x y) irred
+  where
+  irred = <| 1 + x^^121 + x^^126 + x^^127 + x^^128 |>
+
+INIT_Htable : {n} (fin n, n>=2) => [128] -> [n][128]
+INIT_Htable H = take hs
+  where
+  hs = [H] # [ dot hn H
+                | hn <- hs]
+
+/*polyval_Htable : {n} (fin n, n>=1) => [128] -> [n][128] -> [128]
+polyval_Htable H X = polyvalHtableNH`{hs=8} htable X
+  where
+    htable = INIT_Htable H
+
+
+// -----------------------------------------------------------------------------
+
+prop_poly : {a} (a >= 1, fin a) => [128] -> [a][128] -> Bit
+prop_poly H X = polyval_Htable H X == polyvalFrom H X zero
+*/
+blockify : {n} (fin n) => [n] -> [n /^ 128][128]
+blockify x = [ byteSwap b | b <- split (x # zero) ]
+
+unblockify : {n} (fin n) => [n /^ 128][128] -> [n]
+unblockify xs = take (join [ byteSwap b | b <- xs ])
+
+// The spec uses byte-oriented little-endian representations.
+// This function changes back and forth.
+byteSwap : {n} (fin n) => [8 * n] -> [8 * n]
+byteSwap xs = join (reverse (split`{each=8} xs))
+
+polnhest1 = polyvalHtableNH`{hs=8,n=1}
+              ([0x551d5202e5be771d5964fbbd1dac89db]#zero)
+              //(INIT_Htable 0x7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e)
+              [0x189308235800d2810a80a422032144fd]
+              (0x38020aa08800d28bf2fb37d447e1c479)
+
+polnhest2 = polyvalFrom
+                0x7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e
+                [0x189308235800d2810a80a422032144fd]
+                (0x38020aa08800d28bf2fb37d447e1c479)

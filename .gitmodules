@@ -1,7 +1,6 @@
-[submodule "AES-GCM-SIV"]
-	path = AES-GCM-SIV
-	url = https://github.com/galoisinc/AES-GCM-SIV.git
-	branch = master
 [submodule "proof/asm/deps/saw-script"]
 	path = proof/asm/deps/saw-script
 	url = https://github.com/GaloisInc/saw-script
+[submodule "AES-GCM-SIV"]
+	path = AES-GCM-SIV
+	url = https://github.com/shay-gueron/AES-GCM-SIV

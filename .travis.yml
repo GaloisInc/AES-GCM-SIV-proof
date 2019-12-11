@@ -35,6 +35,7 @@ before_install:
   - cd deps/abcBridge; git submodule update --init
   - cd ../..
   - cd ../../../..
+  - cd AES-GCM-SIV; patch -p1 < ../saw.patch; cd ..
 
 install:
   - mkdir bin
